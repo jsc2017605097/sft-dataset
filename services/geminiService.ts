@@ -1,8 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export interface GeneratedQA {
   question: string;
   answer: string;
@@ -10,6 +8,16 @@ export interface GeneratedQA {
 
 export const generateQAPairs = async (fileName: string, sentencesPerChunk: number): Promise<GeneratedQA[]> => {
   try {
+    // Khởi tạo bên trong hàm để an toàn hơn
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      console.warn("API_KEY chưa được thiết lập. Đang sử dụng dữ liệu mẫu.");
+      return [
+        { question: `Câu hỏi mẫu về ${fileName}`, answer: `Dữ liệu mẫu (Cần API KEY để tạo nội dung thật).` }
+      ];
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Hãy tạo 5 cặp câu hỏi và trả lời (Q&A) thực tế dùng cho huấn luyện SFT tiếng Việt, dựa trên tài liệu pháp luật có tên là "${fileName}". 
