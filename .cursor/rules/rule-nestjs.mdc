@@ -1,0 +1,415 @@
+---
+alwaysApply: true
+---
+
+🔐 Cursor AI – NestJS Backend Rules (Tương thích với SFT Dataset FE)
+
+## 1. Nguyên tắc cốt lõi
+
+NestJS backend phải TUYỆT ĐỐI tương thích với Frontend React hiện tại.
+
+Mọi API response phải match 100% với TypeScript interfaces trong `frontend/types.ts`.
+
+Backend là trung gian giữa FE và các service (Tika, Ollama), KHÔNG thay đổi logic business của FE.
+
+## 2. Kiến trúc & Cấu trúc
+
+### 2.1. Cấu trúc thư mục (BẮT BUỘC)
+
+```
+backend/
+├── src/
+│   ├── main.ts                    # Entry point
+│   ├── app.module.ts              # Root module
+│   │
+│   ├── upload/                    # Upload module
+│   │   ├── upload.controller.ts   # API endpoints
+│   │   ├── upload.service.ts      # Business logic
+│   │   ├── upload.module.ts
+│   │   └── dto/                   # Data Transfer Objects
+│   │       ├── upload-file.dto.ts
+│   │       └── process-response.dto.ts
+│   │
+│   ├── documents/                 # Documents module (nhiệm vụ 2)
+│   │   ├── documents.controller.ts
+│   │   ├── documents.service.ts
+│   │   └── documents.module.ts
+│   │
+│   ├── services/                  # External services
+│   │   ├── tika.service.ts        # Tika integration
+│   │   └── ollama.service.ts      # Ollama integration
+│   │
+│   └── common/                    # Shared utilities
+│       ├── interfaces/            # TypeScript interfaces
+│       │   └── frontend-types.ts  # Copy từ FE types.ts
+│       └── filters/               # Exception filters
+│           └── http-exception.filter.ts
+│
+├── package.json
+├── tsconfig.json
+└── .env
+```
+
+### 2.2. Module Pattern (BẮT BUỘC)
+
+- Mỗi feature = 1 module (Upload, Documents, ...)
+- Service layer xử lý business logic
+- Controller chỉ handle HTTP requests/responses
+- DTOs validate input/output
+- External services (Tika, Ollama) tách riêng trong `services/`
+
+## 3. API Contract với Frontend (BẮT BUỘC)
+
+### 3.1. Data Types phải match 100%
+
+Backend DTOs phải match chính xác với FE types:
+
+```typescript
+// Phải copy từ frontend/types.ts
+export interface Document {
+  id: string;
+  name: string;
+  size: string;
+  uploadDate: string;
+  totalSamples: number;
+  reviewedSamples: number;
+  status: 'Ready' | 'Processing' | 'Failed';
+}
+
+export interface QAPair {
+  id: string;
+  docId: string;
+  question: string;
+  answer: string;
+  status: 'Pending' | 'Reviewed' | 'Edited';
+  originalQuestion?: string;
+  originalAnswer?: string;
+}
+
+export interface GeneratedQA {
+  question: string;
+  answer: string;
+}
+```
+
+### 3.2. API Endpoints (BẮT BUỘC)
+
+#### POST /api/upload/process
+**Request:**
+- Content-Type: `multipart/form-data`
+- Body:
+  - `file`: File (PDF/DOCX)
+  - `autoGenerate`: boolean (optional, default: true)
+  - `count`: number (optional, default: 5) - Số lượng Q&A pairs
+
+**Response:**
+```typescript
+{
+  fileName: string;
+  fileSize: string;
+  qaPairs: GeneratedQA[];  // Format: [{question: string, answer: string}]
+}
+```
+
+**Error Response:**
+```typescript
+{
+  statusCode: number;
+  message: string;
+  error?: string;
+}
+```
+
+#### GET /api/health
+**Response:**
+```typescript
+{
+  status: 'ok';
+  services: {
+    tika: 'ok' | 'error';
+    ollama: 'ok' | 'error';
+  };
+}
+```
+
+### 3.3. CORS Configuration (BẮT BUỘC)
+
+```typescript
+// main.ts
+app.enableCors({
+  origin: 'http://localhost:3000', // Vite dev server
+  credentials: true,
+});
+```
+
+## 4. NestJS Best Practices
+
+### 4.1. Dependency Injection (BẮT BUỘC)
+
+- Luôn dùng constructor injection
+- Services phải được inject vào controllers
+- External services (Tika, Ollama) inject vào business services
+
+```typescript
+// ✅ ĐÚNG
+@Injectable()
+export class UploadService {
+  constructor(
+    private readonly tikaService: TikaService,
+    private readonly ollamaService: OllamaService,
+  ) {}
+}
+
+// ❌ SAI - Không dùng new TikaService()
+```
+
+### 4.2. File Upload (BẮT BUỘC)
+
+- Dùng `@UseInterceptors(FileInterceptor('file'))` từ `@nestjs/platform-express`
+- Validate file type: chỉ PDF, DOCX
+- Validate file size: max 50MB
+- Return error rõ ràng nếu validation fail
+
+```typescript
+@Post('process')
+@UseInterceptors(FileInterceptor('file'))
+async processFile(
+  @UploadedFile() file: Express.Multer.File,
+  @Body() body: { autoGenerate?: boolean; count?: number },
+) {
+  // Validate file
+  // Process với Tika + Ollama
+  // Return response
+}
+```
+
+### 4.3. Error Handling (BẮT BUỘC)
+
+- Dùng `HttpException` hoặc custom exceptions
+- Tạo Exception Filter để format error response chuẩn
+- Log errors nhưng không expose internal details ra FE
+
+```typescript
+// ✅ ĐÚNG
+throw new BadRequestException('File không hợp lệ. Chỉ chấp nhận PDF hoặc DOCX.');
+
+// ❌ SAI - Không expose internal error
+throw new Error('Tika connection failed: ECONNREFUSED');
+```
+
+### 4.4. Async/Await (BẮT BUỘC)
+
+- Luôn dùng async/await, không dùng Promise.then()
+- Handle errors với try-catch
+- Return proper HTTP status codes
+
+### 4.5. Validation (BẮT BUỘC)
+
+- Dùng `class-validator` cho DTOs
+- Validate input trước khi xử lý
+- Return 400 Bad Request nếu validation fail
+
+```typescript
+export class ProcessFileDto {
+  @IsOptional()
+  @IsBoolean()
+  autoGenerate?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(20)
+  count?: number;
+}
+```
+
+## 5. Integration với External Services
+
+### 5.1. Tika Service (BẮT BUỘC)
+
+- Endpoint: `http://localhost:9998/tika`
+- Method: PUT
+- Headers: `Accept: text/plain`, `Content-Type: application/octet-stream`
+- Body: File binary
+- Return: Plain text string
+- Error handling: Throw `HttpException` với message rõ ràng
+
+### 5.2. Ollama Service (BẮT BUỘC)
+
+- Endpoint: `http://localhost:11434/api/generate`
+- Method: POST
+- Model: `llama3` (có thể config qua env)
+- Request body:
+  ```typescript
+  {
+    model: string;
+    prompt: string;
+    stream: false;
+    format: 'json';
+  }
+  ```
+- Response parsing: Parse JSON từ `response.response`
+- Error handling: Throw `HttpException` với message rõ ràng
+
+### 5.3. Service Layer Pattern
+
+```typescript
+@Injectable()
+export class TikaService {
+  private readonly tikaEndpoint = 'http://localhost:9998/tika';
+
+  async extractText(file: Buffer): Promise<string> {
+    // Implementation
+  }
+}
+
+@Injectable()
+export class OllamaService {
+  private readonly ollamaEndpoint = 'http://localhost:11434/api/generate';
+  private readonly defaultModel = 'llama3';
+
+  async generateQAPairs(text: string, count: number): Promise<GeneratedQA[]> {
+    // Implementation
+  }
+}
+```
+
+## 6. Environment Configuration
+
+### 6.1. .env File (BẮT BUỘC)
+
+```env
+PORT=3001
+TIKA_ENDPOINT=http://localhost:9998/tika
+OLLAMA_ENDPOINT=http://localhost:11434/api/generate
+OLLAMA_MODEL=llama3
+```
+
+### 6.2. Config Module (Khuyến nghị)
+
+- Dùng `@nestjs/config` để load env variables
+- Validate env variables khi start
+- Type-safe config với interfaces
+
+## 7. Testing Requirements
+
+### 7.1. Unit Tests (Khuyến nghị)
+
+- Test services với mocked dependencies
+- Test error cases
+- Test validation logic
+
+### 7.2. Integration Tests (Khuyến nghị)
+
+- Test API endpoints với test client
+- Test với mock Tika/Ollama responses
+- Test error scenarios
+
+## 8. Code Quality Rules
+
+### 8.1. TypeScript (BẮT BUỘC)
+
+- Strict mode: `true`
+- No `any` types (trừ khi thực sự cần)
+- Dùng interfaces cho data structures
+- Dùng enums cho constants
+
+### 8.2. Naming Conventions (BẮT BUỘC)
+
+- Controllers: `*.controller.ts`
+- Services: `*.service.ts`
+- Modules: `*.module.ts`
+- DTOs: `*.dto.ts`
+- Interfaces: `*.interface.ts` hoặc trong `common/interfaces/`
+
+### 8.3. Comments (BẮT BUỘC)
+
+- Comment giải thích WHY, không chỉ HOW
+- JSDoc cho public methods
+- TODO comments nếu có
+
+## 9. Quy trình Development
+
+### 9.1. Khi tạo API mới (BẮT BUỘC)
+
+1. Xác định DTOs cần thiết (match với FE types)
+2. Tạo controller với proper decorators
+3. Tạo service với business logic
+4. Test với FE để đảm bảo tương thích
+5. Document API nếu cần
+
+### 9.2. Khi sửa API hiện có (BẮT BUỘC)
+
+1. Kiểm tra impact lên FE
+2. Đảm bảo backward compatibility
+3. Update DTOs nếu cần
+4. Test với FE
+
+## 10. Các điều CẤM (ABSOLUTE NO)
+
+❌ KHÔNG được:
+- Thay đổi response format mà không update FE
+- Thêm fields mới vào response mà FE không expect
+- Dùng different naming convention với FE
+- Expose internal errors ra FE
+- Hardcode endpoints (phải dùng env)
+- Bypass validation
+- Dùng `any` type không cần thiết
+- Tạo circular dependencies giữa modules
+
+## 11. Tương thích với Frontend
+
+### 11.1. Response Format (BẮT BUỘC)
+
+Mọi response phải match chính xác với FE expectations:
+
+- Success: Return data object
+- Error: Return `{ statusCode, message, error? }`
+- Status codes: 200, 201, 400, 404, 500
+
+### 11.2. Date Format (BẮT BUỘC)
+
+- Dùng format: `YYYY-MM-DD` hoặc `DD/MM/YYYY` (match với FE)
+- Không dùng ISO string nếu FE không expect
+
+### 11.3. ID Format (BẮT BUỘC)
+
+- Document ID: `doc-${timestamp}` (match với FE)
+- QA Pair ID: `qa-${docId}-${index}` (match với FE)
+
+## 12. Performance & Security
+
+### 12.1. File Upload (BẮT BUỘC)
+
+- Limit file size: 50MB
+- Validate MIME type
+- Stream processing nếu file lớn
+- Cleanup temp files sau khi xử lý
+
+### 12.2. Rate Limiting (Khuyến nghị)
+
+- Implement rate limiting cho upload endpoint
+- Prevent abuse
+
+### 12.3. Logging (BẮT BUỘC)
+
+- Log errors với context
+- Log API requests (không log sensitive data)
+- Dùng structured logging
+
+## 13. Deployment Notes
+
+- Port: 3001 (không conflict với FE port 3000)
+- Health check endpoint: `/api/health`
+- Graceful shutdown
+- Environment-based configuration
+
+---
+
+**Lưu ý cuối cùng:**
+
+Backend NestJS là SERVICE LAYER cho FE, không phải standalone application.
+
+Mọi quyết định phải đặt tương thích với FE lên hàng đầu.
+
+Nếu có conflict giữa "best practice" và "tương thích với FE", chọn tương thích với FE.

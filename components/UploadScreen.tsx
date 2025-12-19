@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, X, FileText, ChevronDown, Check, Loader2, ArrowLeft } from 'lucide-react';
 import { FileStatus } from '../types';
-import { generateQAPairs } from '../services/geminiService';
+import { processFile } from '../services/apiService';
 
 interface UploadScreenProps {
   onBack: () => void;
@@ -15,6 +15,7 @@ interface UploadingFile {
   size: string;
   status: FileStatus;
   progress: number;
+  file: File; // Lưu File object để gửi lên Tika
 }
 
 export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }) => {
@@ -33,6 +34,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
         size: (f.size / (1024 * 1024)).toFixed(2) + ' MB',
         status: 'Pending' as FileStatus,
         progress: 0,
+        file: f, // Lưu File object để gửi lên Tika
       }));
       setFiles(prev => [...prev, ...newFiles]);
     }
@@ -48,19 +50,38 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
 
     setFiles(prev => prev.map(f => ({ ...f, status: 'Processing', progress: 10 })));
 
-    for (const file of files) {
-      setFiles(prev => prev.map(f => f.id === file.id ? { ...f, progress: 30 } : f));
-      
-      let generated = [];
-      if (settings.autoGenerate) {
-        generated = await generateQAPairs(file.name, settings.sentencesPerChunk);
-      }
+    for (const fileItem of files) {
+      try {
+        // Update progress: Uploading
+        setFiles(prev => prev.map(f => f.id === fileItem.id ? { ...f, progress: 20 } : f));
+        
+        // Gọi Backend API để process file
+        setFiles(prev => prev.map(f => f.id === fileItem.id ? { ...f, progress: 50 } : f));
+        
+        const result = await processFile(
+          fileItem.file,
+          settings.autoGenerate,
+          settings.sentencesPerChunk,
+        );
 
-      setFiles(prev => prev.map(f => f.id === file.id ? { ...f, progress: 100, status: 'Completed' } : f));
-      
-      await new Promise(r => setTimeout(r, 800));
-      
-      onComplete(file.name, file.size, generated);
+        // Step 3: Hoàn thành (progress: 100%)
+        setFiles(prev => prev.map(f => f.id === fileItem.id ? { ...f, progress: 100, status: 'Completed' } : f));
+        
+        await new Promise(r => setTimeout(r, 800));
+        
+        onComplete(result.fileName, result.fileSize, result.qaPairs);
+      } catch (error) {
+        // Xử lý lỗi: đánh dấu file là Error
+        console.error(`Lỗi khi xử lý file ${fileItem.name}:`, error);
+        setFiles(prev => prev.map(f => 
+          f.id === fileItem.id 
+            ? { ...f, status: 'Error' as FileStatus, progress: 0 } 
+            : f
+        ));
+        
+        // Hiển thị alert cho user
+        alert(`Lỗi khi xử lý file "${fileItem.name}": ${error instanceof Error ? error.message : 'Lỗi không xác định'}`);
+      }
     }
 
     setIsProcessing(false);
@@ -155,21 +176,21 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
                   onChange={(e) => setSettings(prev => ({ ...prev, autoGenerate: e.target.checked }))}
                 />
                 <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
-                  Tự động tạo cặp Q&A bằng Gemini AI
+                  Tự động tạo cặp Q&A bằng Ollama AI
                 </span>
               </label>
               <div className="flex items-center justify-between pt-2">
-                <span className="text-sm font-medium text-gray-700">Số câu mỗi đoạn (chunk)</span>
+                <span className="text-sm font-medium text-gray-700">Số lượng Q&A pairs</span>
                 <div className="relative inline-block text-left">
                   <select
                     className="appearance-none block w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer"
                     value={settings.sentencesPerChunk}
                     onChange={(e) => setSettings(prev => ({ ...prev, sentencesPerChunk: parseInt(e.target.value) }))}
                   >
-                    <option value={3}>3 câu</option>
-                    <option value={5}>5 câu</option>
-                    <option value={8}>8 câu</option>
-                    <option value={10}>10 câu</option>
+                    <option value={3}>3 pairs</option>
+                    <option value={5}>5 pairs</option>
+                    <option value={8}>8 pairs</option>
+                    <option value={10}>10 pairs</option>
                   </select>
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
                 </div>

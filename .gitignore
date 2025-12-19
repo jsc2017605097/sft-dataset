@@ -12,6 +12,31 @@ dist
 dist-ssr
 *.local
 
+# Build outputs / coverage
+coverage
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs & temp
+*.pid
+*.seed
+*.tgz
+tmp
+temp
+
+# Mac / Linux trash
+.Trash-*
+.fseventsd
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

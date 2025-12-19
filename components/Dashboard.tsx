@@ -145,7 +145,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, onUploadClick, 
                 <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                   <div className="flex flex-col items-center">
                     <Search size={48} className="text-gray-200 mb-4" />
-                    <p>Không tìm thấy tài liệu phù hợp.</p>
+                    <p>{documents.length === 0 ? 'Chưa có tài liệu nào. Hãy tải lên tài liệu đầu tiên!' : 'Không tìm thấy tài liệu phù hợp.'}</p>
                   </div>
                 </td>
               </tr>
