@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Filter, Search, ChevronLeft, ChevronRight, Keyboard, Info } from 'lucide-react';
+import { ArrowLeft, Filter, Search, ChevronLeft, ChevronRight, Keyboard, Info, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { QAPair, Document } from '../types';
 import { QACard } from './QACard';
 
@@ -10,6 +10,7 @@ interface ReviewScreenProps {
   onBack: () => void;
   onUpdateQA: (qaId: string, updates: Partial<QAPair>) => void;
   onDeleteQA: (qaId: string) => void;
+  onGenerateMore: (docId: string, count: number) => Promise<QAPair[]>;
 }
 
 export const ReviewScreen: React.FC<ReviewScreenProps> = ({ 
@@ -17,11 +18,17 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   qaPairs, 
   onBack, 
   onUpdateQA, 
-  onDeleteQA 
+  onDeleteQA,
+  onGenerateMore,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'All' | 'Pending' | 'Reviewed'>('All');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [isExhausted, setIsExhausted] = useState(false); // Đánh dấu đã hết nội dung
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [generateCount, setGenerateCount] = useState(5);
 
   const filteredQAs = useMemo(() => {
     return qaPairs.filter(qa => {
@@ -60,7 +67,33 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   }, [activeIndex, filteredQAs, onUpdateQA]);
 
   const reviewedCount = qaPairs.filter(qa => qa.status === 'Reviewed').length;
-  const progress = (reviewedCount / qaPairs.length) * 100;
+  const progress = qaPairs.length > 0 ? (reviewedCount / qaPairs.length) * 100 : 0;
+
+  const handleGenerateMore = async () => {
+    if (isGenerating || isExhausted) return;
+    
+    setIsGenerating(true);
+    setGenerateError(null);
+    
+    try {
+      const newQAs = await onGenerateMore(document.id, generateCount);
+      
+      if (newQAs.length === 0) {
+        // Không tạo được Q&A mới → đã hết nội dung
+        setIsExhausted(true);
+        setGenerateError('Không thể tạo thêm Q&A pairs. Có thể tài liệu đã hết nội dung để sinh mẫu.');
+      } else {
+        // Thành công, đóng modal
+        setShowGenerateModal(false);
+        setGenerateCount(5); // Reset về default
+      }
+    } catch (error) {
+      console.error('Lỗi khi generate thêm Q&A:', error);
+      setGenerateError(error instanceof Error ? error.message : 'Không thể tạo thêm Q&A pairs');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -75,11 +108,17 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
             </button>
             <div>
               <h2 className="text-lg font-bold text-gray-900 truncate max-w-[300px]">{document.name}</h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <div className="w-32 h-1.5 bg-gray-100 rounded-full">
-                  <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+              <div className="flex items-center gap-3 mt-0.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-32 h-1.5 bg-gray-100 rounded-full">
+                    <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">Đã duyệt {reviewedCount} / {qaPairs.length}</span>
                 </div>
-                <span className="text-[10px] font-bold text-gray-500 uppercase">Đã duyệt {reviewedCount} / {qaPairs.length}</span>
+                <div className="h-4 w-px bg-gray-300"></div>
+                <div className="text-[10px] font-semibold text-gray-600">
+                  Checkpoint: <span className="text-blue-600">{document.totalSamples}</span> mẫu đã sinh
+                </div>
               </div>
             </div>
           </div>
@@ -90,6 +129,32 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
               <span className="bg-gray-100 px-1 rounded">Phím mũi tên</span> Di chuyển
               <span className="bg-gray-100 px-1 rounded ml-2">Ctrl+Enter</span> Phê duyệt
             </div>
+            <button
+              onClick={() => setShowGenerateModal(true)}
+              disabled={isExhausted || isGenerating}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+                isExhausted || isGenerating
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+              }`}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Đang sinh...</span>
+                </>
+              ) : isExhausted ? (
+                <>
+                  <AlertCircle size={14} />
+                  <span>Đã hết nội dung</span>
+                </>
+              ) : (
+                <>
+                  <Plus size={14} />
+                  <span>Tiếp tục sinh mẫu</span>
+                </>
+              )}
+            </button>
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button onClick={() => { setFilter('All'); setActiveIndex(0); }} className={`px-3 py-1.5 text-xs font-semibold rounded-md ${filter === 'All' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Tất cả</button>
               <button onClick={() => { setFilter('Pending'); setActiveIndex(0); }} className={`px-3 py-1.5 text-xs font-semibold rounded-md ${filter === 'Pending' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Chưa duyệt</button>
@@ -148,6 +213,67 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         <div className="text-sm font-bold w-20 text-center border-x border-gray-700">{activeIndex + 1} / {filteredQAs.length}</div>
         <button disabled={activeIndex === filteredQAs.length - 1} onClick={() => setActiveIndex(prev => prev + 1)} className="p-1 hover:text-blue-400 disabled:opacity-30"><ChevronRight size={24} /></button>
       </div>
+
+      {/* Generate More Modal */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => !isGenerating && setShowGenerateModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Tiếp tục sinh mẫu Q&A</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Tài liệu hiện có <strong>{document.totalSamples}</strong> mẫu Q&A. Bạn muốn sinh thêm bao nhiêu mẫu?
+            </p>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Số lượng mẫu cần sinh (1-20)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={generateCount}
+                onChange={(e) => setGenerateCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 5)))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                disabled={isGenerating}
+              />
+            </div>
+
+            {generateError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                <AlertCircle size={16} className="text-red-600 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-800">{generateError}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowGenerateModal(false);
+                  setGenerateError(null);
+                }}
+                disabled={isGenerating}
+                className="flex-1 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleGenerateMore}
+                disabled={isGenerating}
+                className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang sinh...</span>
+                  </>
+                ) : (
+                  'Sinh mẫu'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

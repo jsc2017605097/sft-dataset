@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DocumentEntity } from './entities/document.entity';
 import { QAPairEntity } from './entities/qa-pair.entity';
 import { Document, QAPair } from '../common/interfaces/frontend-types';
 import { GeneratedQA } from '../common/interfaces/frontend-types';
+import { OllamaService } from '../services/ollama.service';
 
 /**
  * Documents Service - Quản lý lưu trữ và truy vấn Document & QAPair
@@ -16,6 +17,7 @@ export class DocumentsService {
     private readonly documentRepo: Repository<DocumentEntity>,
     @InjectRepository(QAPairEntity)
     private readonly qaRepo: Repository<QAPairEntity>,
+    private readonly ollamaService: OllamaService,
   ) {}
 
   /**
@@ -25,9 +27,11 @@ export class DocumentsService {
   async createDocumentWithQAPairs(
     document: Document,
     generatedQAs: GeneratedQA[],
+    extractedText?: string,
   ): Promise<void> {
     const docEntity = this.documentRepo.create({
       ...document,
+      extractedText: extractedText || null,
     });
 
     const qaEntities: QAPairEntity[] = generatedQAs.map((qa, index) =>
@@ -193,6 +197,90 @@ export class DocumentsService {
     doc.reviewedSamples = reviewedSamples;
 
     await this.documentRepo.save(doc);
+  }
+
+  /**
+   * Generate thêm Q&A pairs cho document đã có
+   * @param docId - ID của document
+   * @param count - Số lượng Q&A pairs cần tạo thêm
+   * @returns Mảng các Q&A pairs mới được tạo
+   */
+  async generateMoreQAPairs(docId: string, count: number): Promise<QAPair[]> {
+    // Lấy document với extractedText
+    const doc = await this.documentRepo.findOne({
+      where: { id: docId },
+      relations: ['qaPairs'],
+    });
+
+    if (!doc) {
+      throw new NotFoundException(`Document ${docId} không tồn tại`);
+    }
+
+    if (!doc.extractedText) {
+      throw new BadRequestException(
+        'Tài liệu này không có extracted text. Không thể generate thêm Q&A pairs. Vui lòng upload lại file.',
+      );
+    }
+
+    // Lấy danh sách câu hỏi đã có để tránh trùng lặp
+    const existingQuestions = doc.qaPairs.map((qa) => qa.question);
+
+    // Generate Q&A pairs mới từ extractedText
+    const newGeneratedQAs = await this.ollamaService.generateQAPairs(
+      doc.extractedText,
+      count,
+    );
+
+    if (newGeneratedQAs.length === 0) {
+      // Nếu không tạo được Q&A mới nào, có thể đã hết nội dung
+      return [];
+    }
+
+    // Lọc duplicates so với Q&A đã có
+    const uniqueQAs = newGeneratedQAs.filter((newQA) => {
+      return !existingQuestions.some((existingQ) => {
+        const normalize = (str: string) => str.toLowerCase().trim().replace(/\s+/g, ' ');
+        const n1 = normalize(newQA.question);
+        const n2 = normalize(existingQ);
+        return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+      });
+    });
+
+    if (uniqueQAs.length === 0) {
+      // Tất cả đều bị trùng → có thể đã hết nội dung
+      return [];
+    }
+
+    // Tạo QAPair entities mới
+    const startIndex = doc.qaPairs.length;
+    const newQAPairEntities: QAPairEntity[] = uniqueQAs.map((qa, index) =>
+      this.qaRepo.create({
+        id: `qa-${docId}-${startIndex + index}`,
+        docId: docId,
+        question: qa.question,
+        answer: qa.answer,
+        status: 'Pending',
+      }),
+    );
+
+    // Lưu vào database
+    await this.documentRepo.manager.transaction(async (manager) => {
+      await manager.save(QAPairEntity, newQAPairEntities);
+    });
+
+    // Recalculate stats
+    await this.recalculateDocumentStats(docId);
+
+    // Return QAPair format cho FE
+    return newQAPairEntities.map((qa) => ({
+      id: qa.id,
+      docId: qa.docId,
+      question: qa.question,
+      answer: qa.answer,
+      status: qa.status,
+      originalQuestion: qa.originalQuestion ?? undefined,
+      originalAnswer: qa.originalAnswer ?? undefined,
+    }));
   }
 }
 

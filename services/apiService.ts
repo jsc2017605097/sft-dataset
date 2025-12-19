@@ -164,4 +164,33 @@ export const deleteDocument = async (docId: string): Promise<void> => {
   }
 };
 
+/**
+ * Generate thêm Q&A pairs cho document đã có
+ * @param docId - ID của document
+ * @param count - Số lượng Q&A pairs cần tạo thêm
+ * @returns Mảng các Q&A pairs mới được tạo
+ */
+export const generateMoreQAPairs = async (docId: string, count: number): Promise<QAPair[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/documents/${docId}/generate-more`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ count }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: QAPair[] = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi khi generate thêm Q&A pairs:', error);
+    throw error;
+  }
+};
+
 

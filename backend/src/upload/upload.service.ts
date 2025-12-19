@@ -53,10 +53,11 @@ export class UploadService {
     const fileSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
 
     let qaPairs = [];
+    let extractedText = '';
 
     if (autoGenerate) {
       // Step 1: Extract text từ file bằng Tika
-      const extractedText = await this.tikaService.extractText(file.buffer);
+      extractedText = await this.tikaService.extractText(file.buffer);
 
       // Step 2: Generate Q&A pairs từ text bằng Ollama
       qaPairs = await this.ollamaService.generateQAPairs(extractedText, count);
@@ -76,8 +77,8 @@ export class UploadService {
       status: 'Ready',
     };
 
-    // Lưu Document + QAPairs xuống SQLite (transaction bên trong service)
-    await this.documentsService.createDocumentWithQAPairs(document, qaPairs);
+    // Lưu Document + QAPairs + extractedText xuống SQLite (transaction bên trong service)
+    await this.documentsService.createDocumentWithQAPairs(document, qaPairs, extractedText);
 
     // Response cho FE giữ nguyên format cũ (fileName, fileSize, qaPairs)
     return {

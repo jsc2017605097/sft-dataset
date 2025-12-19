@@ -27,6 +27,9 @@ export class DocumentEntity {
   @Column()
   status: 'Ready' | 'Processing' | 'Failed';
 
+  @Column({ type: 'text', nullable: true })
+  extractedText: string | null; // Lưu text từ Tika để có thể generate thêm Q&A sau này
+
   @OneToMany(() => QAPairEntity, (qa) => qa.document, {
     cascade: true,
   })

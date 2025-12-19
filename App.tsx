@@ -5,7 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { UploadScreen } from './components/UploadScreen';
 import { ReviewScreen } from './components/ReviewScreen';
 import { Layout, Loader2 } from 'lucide-react';
-import { getDocuments, getQAPairs, updateQAPair, deleteQAPair, deleteDocument } from './services/apiService';
+import { getDocuments, getQAPairs, updateQAPair, deleteQAPair, deleteDocument, generateMoreQAPairs } from './services/apiService';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -144,6 +144,43 @@ const App: React.FC = () => {
     }
   };
 
+  const handleGenerateMore = async (docId: string, count: number): Promise<QAPair[]> => {
+    try {
+      // Gọi API để generate thêm Q&A
+      const newQAs = await generateMoreQAPairs(docId, count);
+      
+      if (newQAs.length === 0) {
+        // Không tạo được Q&A mới → đã hết nội dung
+        return [];
+      }
+
+      // Update local state: thêm Q&A mới và update totalSamples
+      setState(prev => {
+        const docQAs = prev.qaPairs[docId] || [];
+        const newDocQAs = [...docQAs, ...newQAs];
+        const newDocs = prev.documents.map(d => 
+          d.id === docId 
+            ? { 
+                ...d, 
+                totalSamples: newDocQAs.length,
+                reviewedSamples: newDocQAs.filter(q => q.status === 'Reviewed').length,
+              } 
+            : d
+        );
+        return { 
+          ...prev, 
+          documents: newDocs, 
+          qaPairs: { ...prev.qaPairs, [docId]: newDocQAs } 
+        };
+      });
+
+      return newQAs;
+    } catch (err) {
+      console.error('Lỗi khi generate thêm Q&A:', err);
+      throw err;
+    }
+  };
+
   const onUploadComplete = async (name: string, size: string, generatedQAs: any[]) => {
     // Reload documents từ API sau khi upload thành công
     // (Backend đã tự động lưu vào database)
@@ -198,7 +235,14 @@ const App: React.FC = () => {
         <UploadScreen onBack={goToDashboard} onComplete={onUploadComplete} />
       )}
       {state.view === 'review' && state.selectedDocId && (
-        <ReviewScreen document={state.documents.find(d => d.id === state.selectedDocId)!} qaPairs={state.qaPairs[state.selectedDocId] || []} onBack={goToDashboard} onUpdateQA={updateQA} onDeleteQA={deleteQA} />
+        <ReviewScreen 
+          document={state.documents.find(d => d.id === state.selectedDocId)!} 
+          qaPairs={state.qaPairs[state.selectedDocId] || []} 
+          onBack={goToDashboard} 
+          onUpdateQA={updateQA} 
+          onDeleteQA={deleteQA}
+          onGenerateMore={handleGenerateMore}
+        />
       )}
 
       <footer className="py-12 border-t border-gray-200 bg-white">
