@@ -59,7 +59,7 @@ export class DocumentsService {
     const docs = await this.documentRepo.find();
     return docs.map((d) => ({
       id: d.id,
-      name: d.name,
+      name: this.normalizeFileName(d.name),
       size: d.size,
       uploadDate: d.uploadDate,
       totalSamples: d.totalSamples,
@@ -95,7 +95,7 @@ export class DocumentsService {
 
     const document: Document = {
       id: doc.id,
-      name: doc.name,
+      name: this.normalizeFileName(doc.name),
       size: doc.size,
       uploadDate: doc.uploadDate,
       totalSamples: doc.totalSamples,
@@ -104,6 +104,21 @@ export class DocumentsService {
     };
 
     return { document, qaPairs };
+  }
+
+  /**
+   * Normalize tên file để fix trường hợp tiếng Việt bị hiển thị sai (UTF-8 -> latin1)
+   */
+  private normalizeFileName(name: string): string {
+    try {
+      const utf8 = Buffer.from(name, 'latin1').toString('utf8');
+      if (utf8.includes('�')) {
+        return name;
+      }
+      return utf8;
+    } catch {
+      return name;
+    }
   }
 
   /**

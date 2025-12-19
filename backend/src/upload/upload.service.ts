@@ -63,13 +63,30 @@ export class UploadService {
       qaPairs = await this.ollamaService.generateQAPairs(extractedText, count);
     }
 
+    // Normalize tên file để tránh lỗi encoding tiếng Việt (UTF-8 bị hiển thị sai)
+    const normalizeFileName = (name: string): string => {
+      try {
+        // Thử decode lại từ latin1 sang utf8 nếu ban đầu bị đọc sai
+        const utf8 = Buffer.from(name, 'latin1').toString('utf8');
+        // Nếu decode ra vẫn có ký tự lạ thì giữ nguyên
+        if (utf8.includes('�')) {
+          return name;
+        }
+        return utf8;
+      } catch {
+        return name;
+      }
+    };
+
+    const safeFileName = normalizeFileName(file.originalname);
+
     // Tạo Document id và metadata tương thích với FE
     const docId = `doc-${Date.now()}`;
     const uploadDate = new Date().toLocaleDateString('vi-VN');
 
     const document: Document = {
       id: docId,
-      name: file.originalname,
+      name: safeFileName,
       size: fileSize,
       uploadDate,
       totalSamples: qaPairs.length,
@@ -82,7 +99,7 @@ export class UploadService {
 
     // Response cho FE giữ nguyên format cũ (fileName, fileSize, qaPairs)
     return {
-      fileName: file.originalname,
+      fileName: safeFileName,
       fileSize: fileSize,
       qaPairs: qaPairs,
     };

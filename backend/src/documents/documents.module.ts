@@ -4,6 +4,7 @@ import { DocumentEntity } from './entities/document.entity';
 import { QAPairEntity } from './entities/qa-pair.entity';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
+import { QAController } from './qa.controller';
 import { OllamaService } from '../services/ollama.service';
 
 /**
@@ -12,7 +13,7 @@ import { OllamaService } from '../services/ollama.service';
 @Module({
   imports: [TypeOrmModule.forFeature([DocumentEntity, QAPairEntity])],
   providers: [DocumentsService, OllamaService],
-  controllers: [DocumentsController],
+  controllers: [DocumentsController, QAController],
   exports: [DocumentsService],
 })
 export class DocumentsModule {}

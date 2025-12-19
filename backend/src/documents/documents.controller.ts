@@ -36,29 +36,6 @@ export class DocumentsController {
     return qaPairs;
   }
 
-  /**
-   * PATCH /api/qa/:id
-   * Cập nhật 1 QAPair (edit/review)
-   */
-  @Patch('/../qa/:id')
-  async updateQAPair(
-    @Param('id') id: string,
-    @Body()
-    body: Partial<
-      Pick<QAPair, 'question' | 'answer' | 'status' | 'originalQuestion' | 'originalAnswer'>
-    >,
-  ): Promise<QAPair> {
-    return this.documentsService.updateQAPair(id, body);
-  }
-
-  /**
-   * DELETE /api/qa/:id
-   * Xóa 1 QAPair
-   */
-  @Delete('/../qa/:id')
-  async deleteQAPair(@Param('id') id: string): Promise<void> {
-    return this.documentsService.deleteQAPair(id);
-  }
 
   /**
    * DELETE /api/documents/:id
