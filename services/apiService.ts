@@ -16,7 +16,7 @@ export interface ProcessFileResponse {
   qaPairs: GeneratedQA[];
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://100.101.198.12:3001';
 
 /**
  * Process file: Upload file và generate Q&A pairs
