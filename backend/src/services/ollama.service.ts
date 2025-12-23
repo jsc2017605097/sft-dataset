@@ -1,19 +1,42 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GeneratedQA } from '../common/interfaces/frontend-types';
+import { SettingsService } from '../settings/settings.service';
 
 /**
  * Ollama Service - Generate Q&A pairs từ text
  * Gọi Ollama LLM để tạo các cặp câu hỏi và câu trả lời từ văn bản
  */
 @Injectable()
-export class OllamaService {
+export class OllamaService implements OnModuleInit {
   private readonly ollamaEndpoint: string;
   private readonly defaultModel: string;
+  private cachedSystemPrompt: string; // Cache system prompt từ DB
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly settingsService: SettingsService,
+  ) {
     this.ollamaEndpoint = this.configService.get<string>('OLLAMA_ENDPOINT') || 'http://localhost:11434/api/generate';
     this.defaultModel = this.configService.get<string>('OLLAMA_MODEL') || 'ubkt:latest';
+  }
+
+  /**
+   * Load system prompt từ DB khi server start và cache lại
+   */
+  async onModuleInit() {
+    console.log('[OllamaService] Loading system prompt from database...');
+    this.cachedSystemPrompt = await this.settingsService.getSystemPrompt();
+    console.log('[OllamaService] System prompt cached:', this.cachedSystemPrompt.substring(0, 100) + '...');
+  }
+
+  /**
+   * Refresh cache khi user update settings
+   */
+  async refreshPromptCache() {
+    console.log('[OllamaService] Refreshing system prompt cache...');
+    this.cachedSystemPrompt = await this.settingsService.getSystemPrompt();
+    console.log('[OllamaService] System prompt cache refreshed');
   }
 
   /**
@@ -145,12 +168,11 @@ export class OllamaService {
     existingQuestions: string[] = [],
   ): Promise<GeneratedQA[]> {
     try {
-      // Tạo system prompt và user prompt - Ép format chặt chẽ hơn với example
-      let systemPrompt = `Bạn là một chuyên gia pháp luật. Nhiệm vụ của bạn là tạo các cặp câu hỏi và câu trả lời (Q&A) từ tài liệu pháp luật được cung cấp.
-
-QUAN TRỌNG - BẮT BUỘC:
-1. Ngôn ngữ: Tiếng Việt trang trọng, chính xác về mặt pháp lý
-2. Nội dung: Câu hỏi phải là những gì người dùng thường hỏi về luật, câu trả lời phải chi tiết và trích dẫn logic từ tài liệu
+      // Tạo system prompt từ cache (user configurable) + technical format (fix cứng)
+      let systemPrompt = this.cachedSystemPrompt; // User configurable part
+      
+      // Append technical format rules (FIX CỨNG - không cho user edit)
+      systemPrompt += `
 3. Format: BẮT BUỘC phải trả về JSON array với format chính xác:
    [
      {"question": "Câu hỏi 1", "answer": "Câu trả lời 1"},

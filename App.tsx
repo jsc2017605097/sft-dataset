@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { UploadScreen } from './components/UploadScreen';
 import { ReviewScreen } from './components/ReviewScreen';
 import { RemoteFilesScreen } from './components/RemoteFilesScreen';
+import { SettingsScreen } from './components/SettingsScreen';
 import { Layout, Loader2 } from 'lucide-react';
 import { getDocuments, getQAPairs, updateQAPair, deleteQAPair, deleteDocument, generateMoreQAPairs } from './services/apiService';
 
@@ -63,6 +64,7 @@ const App: React.FC = () => {
   };
   const goToUpload = () => setState(prev => ({ ...prev, view: 'upload' }));
   const goToRemoteFiles = () => setState(prev => ({ ...prev, view: 'remote-files' }));
+  const goToSettings = () => setState(prev => ({ ...prev, view: 'settings' }));
   const goToReview = async (docId: string) => {
     setState(prev => ({ ...prev, view: 'review', selectedDocId: docId }));
     // Load Q&A pairs khi vào review screen
@@ -229,7 +231,7 @@ const App: React.FC = () => {
               </div>
             </div>
           ) : (
-            <Dashboard documents={state.documents} onUploadClick={goToUpload} onViewSamples={goToReview} onDeleteDoc={deleteDoc} onRemoteFilesClick={goToRemoteFiles} />
+            <Dashboard documents={state.documents} onUploadClick={goToUpload} onViewSamples={goToReview} onDeleteDoc={deleteDoc} onRemoteFilesClick={goToRemoteFiles} onSettingsClick={goToSettings} />
           )}
         </>
       )}
@@ -251,6 +253,9 @@ const App: React.FC = () => {
           onBack={goToDashboard}
           onViewDocument={goToReview}
         />
+      )}
+      {state.view === 'settings' && (
+        <SettingsScreen onBack={goToDashboard} />
       )}
 
       <footer className="py-12 border-t border-gray-200 bg-white">

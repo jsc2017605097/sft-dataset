@@ -264,4 +264,68 @@ export const processRemoteFile = async (
   }
 };
 
+/**
+ * Settings API
+ */
+export interface SettingsResponse {
+  useDefaultPrompt: boolean;
+  customPrompt: string | null;
+  defaultPromptTemplate: string;
+  updatedAt: string;
+}
+
+export interface UpdateSettingsRequest {
+  useDefaultPrompt: boolean;
+  customPrompt?: string | null;
+}
+
+/**
+ * Get current settings
+ */
+export const getSettings = async (): Promise<SettingsResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/settings`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Lỗi khi lấy settings:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update settings
+ */
+export const updateSettings = async (data: UpdateSettingsRequest): Promise<SettingsResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Lỗi khi cập nhật settings:', error);
+    throw error;
+  }
+};
+
 

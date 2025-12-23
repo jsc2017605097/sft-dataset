@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Plus, FileText, CheckCircle2, Clock, MoreVertical, ExternalLink, Download, Trash2, FolderOpen } from 'lucide-react';
+import { Search, Plus, FileText, CheckCircle2, Clock, MoreVertical, ExternalLink, Download, Trash2, FolderOpen, Settings } from 'lucide-react';
 import { Document } from '../types';
 import { Badge } from './Badge';
 
@@ -10,9 +10,10 @@ interface DashboardProps {
   onViewSamples: (docId: string) => void;
   onDeleteDoc: (docId: string) => void;
   onRemoteFilesClick?: () => void;
+  onSettingsClick?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ documents, onUploadClick, onViewSamples, onDeleteDoc, onRemoteFilesClick }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ documents, onUploadClick, onViewSamples, onDeleteDoc, onRemoteFilesClick, onSettingsClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'All' | 'Unreviewed'>('All');
 
@@ -30,6 +31,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, onUploadClick, 
           <p className="text-gray-500">Quản lý và duyệt các bộ dữ liệu SFT pháp luật của bạn.</p>
         </div>
         <div className="flex items-center gap-3">
+          {onSettingsClick && (
+            <button
+              onClick={onSettingsClick}
+              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors shadow-sm"
+            >
+              <Settings size={18} className="mr-2" />
+              Cài đặt
+            </button>
+          )}
           {onRemoteFilesClick && (
             <button
               onClick={onRemoteFilesClick}

@@ -4,9 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UploadModule } from './upload/upload.module';
 import { AppController } from './app.controller';
 import { TikaService } from './services/tika.service';
-import { OllamaService } from './services/ollama.service';
+import { OllamaModule } from './services/ollama.module';
 import { DocumentsModule } from './documents/documents.module';
 import { RemoteFilesModule } from './remote-files/remote-files.module';
+import { SettingsModule } from './settings/settings.module';
 
 /**
  * App Module - Root module của NestJS application
@@ -27,9 +28,11 @@ import { RemoteFilesModule } from './remote-files/remote-files.module';
     UploadModule,
     DocumentsModule,
     RemoteFilesModule,
+    SettingsModule,
+    OllamaModule,
   ],
   controllers: [AppController],
-  providers: [TikaService, OllamaService],
+  providers: [TikaService],
 })
 export class AppModule {}
 
