@@ -52,3 +52,4 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
 };
 
 
+

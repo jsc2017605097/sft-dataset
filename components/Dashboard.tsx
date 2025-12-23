@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Plus, FileText, CheckCircle2, Clock, MoreVertical, ExternalLink, Download, Trash2 } from 'lucide-react';
+import { Search, Plus, FileText, CheckCircle2, Clock, MoreVertical, ExternalLink, Download, Trash2, FolderOpen } from 'lucide-react';
 import { Document } from '../types';
 import { Badge } from './Badge';
 
@@ -9,9 +9,10 @@ interface DashboardProps {
   onUploadClick: () => void;
   onViewSamples: (docId: string) => void;
   onDeleteDoc: (docId: string) => void;
+  onRemoteFilesClick?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ documents, onUploadClick, onViewSamples, onDeleteDoc }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ documents, onUploadClick, onViewSamples, onDeleteDoc, onRemoteFilesClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'All' | 'Unreviewed'>('All');
 
@@ -28,13 +29,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, onUploadClick, 
           <h1 className="text-2xl font-bold text-gray-900">Bảng điều khiển tài liệu</h1>
           <p className="text-gray-500">Quản lý và duyệt các bộ dữ liệu SFT pháp luật của bạn.</p>
         </div>
-        <button
-          onClick={onUploadClick}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <Plus size={18} className="mr-2" />
-          Xử lý tài liệu mới
-        </button>
+        <div className="flex items-center gap-3">
+          {onRemoteFilesClick && (
+            <button
+              onClick={onRemoteFilesClick}
+              className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors shadow-sm"
+            >
+              <FolderOpen size={18} className="mr-2" />
+              Tài liệu từ xa
+            </button>
+          )}
+          <button
+            onClick={onUploadClick}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <Plus size={18} className="mr-2" />
+            Xử lý tài liệu mới
+          </button>
+        </div>
       </div>
 
       {/* Filters & Search */}

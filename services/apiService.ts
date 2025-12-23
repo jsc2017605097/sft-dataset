@@ -193,4 +193,75 @@ export const generateMoreQAPairs = async (docId: string, count: number): Promise
   }
 };
 
+/**
+ * Interface cho Remote File
+ */
+export interface RemoteFile {
+  name: string;
+  size: number;
+  sizeFormatted: string;
+  isProcessed: boolean;
+  docId?: string;
+  processedDate?: string;
+}
+
+/**
+ * Lấy danh sách file từ xa (từ folder data/uploads)
+ */
+export const getRemoteFiles = async (): Promise<RemoteFile[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/remote-files`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: RemoteFile[] = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách remote files:', error);
+    throw error;
+  }
+};
+
+/**
+ * Xử lý file từ xa (từ folder data/uploads)
+ * @param fileName - Tên file trong folder uploads
+ * @param autoGenerate - Có tự động generate Q&A không
+ * @param count - Số lượng Q&A pairs cần tạo
+ * @returns Document đã được tạo
+ */
+export const processRemoteFile = async (
+  fileName: string,
+  autoGenerate: boolean = true,
+  count: number = 5,
+): Promise<Document> => {
+  try {
+    // Encode filename để xử lý ký tự đặc biệt trong URL
+    const encodedFileName = encodeURIComponent(fileName);
+
+    const response = await fetch(`${API_BASE_URL}/api/remote-files/${encodedFileName}/process`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ autoGenerate, count }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: Document = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi khi xử lý remote file:', error);
+    throw error;
+  }
+};
+
 

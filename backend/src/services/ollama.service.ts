@@ -158,10 +158,11 @@ QUAN TRỌNG - BẮT BUỘC:
    ]
 4. Số lượng: Tạo chính xác ${count} cặp Q&A`;
 
-      // Nếu đã có câu hỏi trước đó, thêm context để tránh trùng lặp
+      // Nếu đã có câu hỏi trước đó, chỉ lấy 15 câu gần nhất để tránh context quá dài
       if (existingQuestions.length > 0) {
-        systemPrompt += `\n5. TRÁNH TRÙNG LẶP: Đã có ${existingQuestions.length} câu hỏi sau đây. BẠN PHẢI tạo câu hỏi MỚI, KHÔNG được trùng lặp về nội dung hoặc ngữ nghĩa:
-${existingQuestions.map((q, idx) => `   ${idx + 1}. ${q}`).join('\n')}`;
+        const recentQuestions = existingQuestions.slice(-15); // Chỉ lấy 15 câu gần nhất
+        systemPrompt += `\n5. TRÁNH TRÙNG LẶP: Đã có ${existingQuestions.length} câu hỏi. Dưới đây là ${recentQuestions.length} câu gần nhất - BẠN PHẢI tạo câu hỏi MỚI, HOÀN TOÀN KHÁC về nội dung và ngữ nghĩa:
+${recentQuestions.map((q, idx) => `   ${idx + 1}. ${q}`).join('\n')}`;
       } else {
         systemPrompt += `\n5. KHÔNG được trả về object với numeric keys như {"0": "...", "1": "..."}`;
       }
@@ -181,9 +182,11 @@ VÍ DỤ SAI (KHÔNG ĐƯỢC):
 {"question": "..."}  ← SAI (thiếu answer hoặc không phải array)
 "text plain"  ← SAI`;
 
+      // Giới hạn chunk text để tránh context quá dài (3000 chars thay vì 8000)
+      const maxChunkInPrompt = 3000;
       let userPrompt = `Dựa trên phần tài liệu pháp luật sau đây, hãy tạo CHÍNH XÁC ${count} cặp câu hỏi và câu trả lời MỚI (không trùng với các câu đã có):
 
-${chunkText.substring(0, 8000)}${chunkText.length > 8000 ? '...' : ''}
+${chunkText.substring(0, maxChunkInPrompt)}${chunkText.length > maxChunkInPrompt ? '...' : ''}
 
 NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...] - KHÔNG có gì khác ngoài JSON array.`;
 
@@ -197,6 +200,7 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
 
       console.log(`[Ollama] Calling endpoint: ${this.ollamaEndpoint}`);
       console.log(`[Ollama] Model: ${this.defaultModel}`);
+      console.log(`[Ollama] Prompt length: ${requestBody.prompt.length} chars (system: ${systemPrompt.length}, user: ${userPrompt.length})`);
       
       const response = await fetch(this.ollamaEndpoint, {
         method: 'POST',
@@ -311,24 +315,39 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
         // Nếu là object, xử lý tùy trường hợp
         if (typeof qaPairs === 'object' && qaPairs !== null) {
           const qaObj = qaPairs as any;
-          // Case 1: Single Q&A object {question, answer}
-          if (qaObj.question && qaObj.answer) {
-            console.log('[Ollama] Single Q&A object detected, wrapping to array');
-            qaPairs = [qaObj] as GeneratedQA[];
+          
+          // Case 1: Object với key chứa array (phổ biến: questionsAnswers, qaPairs, data, results, items)
+          const commonArrayKeys = ['questionsAnswers', 'qaPairs', 'qa_pairs', 'data', 'results', 'items', 'questions'];
+          let foundArrayKey = false;
+          for (const key of commonArrayKeys) {
+            if (Array.isArray(qaObj[key])) {
+              console.log(`[Ollama] Found array in key "${key}", extracting...`);
+              qaPairs = qaObj[key] as GeneratedQA[];
+              foundArrayKey = true;
+              break;
+            }
           }
-          // Case 2: Object với numeric keys {"0": {...}, "1": {...}}
-          else {
-            console.log('[Ollama] Converting object with numeric keys to array');
-            const objectKeys = Object.keys(qaObj).sort((a, b) => {
-              const numA = parseInt(a, 10);
-              const numB = parseInt(b, 10);
-              if (!isNaN(numA) && !isNaN(numB)) {
-                return numA - numB;
-              }
-              return a.localeCompare(b);
-            });
-            qaPairs = objectKeys.map(key => qaObj[key]).filter(item => item !== null && item !== undefined) as GeneratedQA[];
-            console.log(`[Ollama] Converted ${qaPairs.length} items from object`);
+          
+          if (!foundArrayKey) {
+            // Case 2: Single Q&A object {question, answer}
+            if (qaObj.question && qaObj.answer) {
+              console.log('[Ollama] Single Q&A object detected, wrapping to array');
+              qaPairs = [qaObj] as GeneratedQA[];
+            }
+            // Case 3: Object với numeric keys {"0": {...}, "1": {...}}
+            else {
+              console.log('[Ollama] Converting object with numeric keys to array');
+              const objectKeys = Object.keys(qaObj).sort((a, b) => {
+                const numA = parseInt(a, 10);
+                const numB = parseInt(b, 10);
+                if (!isNaN(numA) && !isNaN(numB)) {
+                  return numA - numB;
+                }
+                return a.localeCompare(b);
+              });
+              qaPairs = objectKeys.map(key => qaObj[key]).filter(item => item !== null && item !== undefined) as GeneratedQA[];
+              console.log(`[Ollama] Converted ${qaPairs.length} items from object`);
+            }
           }
         } else {
           throw new HttpException(
@@ -402,6 +421,15 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
    * @throws HttpException nếu Ollama server không phản hồi hoặc response không hợp lệ
    */
   async generateQAPairs(text: string, count: number): Promise<GeneratedQA[]> {
+    // Validate text có đủ dài không (ít nhất 100 chars)
+    const trimmedText = text.trim();
+    if (trimmedText.length < 100) {
+      throw new HttpException(
+        `Nội dung tài liệu quá ngắn (${trimmedText.length} chars). Cần ít nhất 100 ký tự để tạo Q&A pairs.`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     const allQAPairs: GeneratedQA[] = [];
     let attempts = 0;
     const maxAttempts = 10; // Tránh infinite loop
@@ -410,7 +438,7 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
     console.log(`[Ollama] Bắt đầu generate ${count} Q&A pairs với retry logic`);
 
     // Tách text thành nhiều chunk để mỗi attempt dùng context khác nhau
-    const chunks = this.splitTextIntoChunks(text);
+    const chunks = this.splitTextIntoChunks(trimmedText);
     console.log(`[Ollama] Text được tách thành ${chunks.length} chunk (max ~3000 chars mỗi chunk)`);
 
     while (allQAPairs.length < count && attempts < maxAttempts) {
@@ -432,6 +460,22 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
         console.log(
           `[Ollama] Attempt ${attempts}: sử dụng chunk #${chunkIndex + 1}/${chunks.length} với độ dài ${chunkText.length} chars`,
         );
+
+        // Kiểm tra chunk có đủ dài không (ít nhất 100 chars)
+        if (chunkText.trim().length < 100) {
+          console.warn(
+            `[Ollama] Attempt ${attempts}: Chunk quá ngắn (${chunkText.length} chars), không đủ để tạo Q&A. Dừng lại.`,
+          );
+          // Nếu đã có ít nhất 1 Q&A, break; nếu không thì throw error
+          if (allQAPairs.length > 0) {
+            break;
+          } else {
+            throw new HttpException(
+              'Nội dung tài liệu quá ngắn hoặc đã hết. Không thể tạo thêm Q&A pairs.',
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+        }
 
         // Gọi Ollama với chunk đã chọn
         const newPairs = await this.callOllamaOnce(chunkText, requestCount, existingQuestions);

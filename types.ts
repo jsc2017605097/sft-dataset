@@ -23,7 +23,7 @@ export interface QAPair {
   originalAnswer?: string;
 }
 
-export type ViewState = 'dashboard' | 'upload' | 'review';
+export type ViewState = 'dashboard' | 'upload' | 'review' | 'remote-files';
 
 export interface AppState {
   view: ViewState;

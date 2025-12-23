@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { TikaService } from './services/tika.service';
 import { OllamaService } from './services/ollama.service';
 import { DocumentsModule } from './documents/documents.module';
+import { RemoteFilesModule } from './remote-files/remote-files.module';
 
 /**
  * App Module - Root module của NestJS application
@@ -25,6 +26,7 @@ import { DocumentsModule } from './documents/documents.module';
     }),
     UploadModule,
     DocumentsModule,
+    RemoteFilesModule,
   ],
   controllers: [AppController],
   providers: [TikaService, OllamaService],

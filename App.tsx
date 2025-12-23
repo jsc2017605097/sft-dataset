@@ -4,6 +4,7 @@ import { AppState, ViewState, Document, QAPair } from './types';
 import { Dashboard } from './components/Dashboard';
 import { UploadScreen } from './components/UploadScreen';
 import { ReviewScreen } from './components/ReviewScreen';
+import { RemoteFilesScreen } from './components/RemoteFilesScreen';
 import { Layout, Loader2 } from 'lucide-react';
 import { getDocuments, getQAPairs, updateQAPair, deleteQAPair, deleteDocument, generateMoreQAPairs } from './services/apiService';
 
@@ -61,6 +62,7 @@ const App: React.FC = () => {
     loadDocuments();
   };
   const goToUpload = () => setState(prev => ({ ...prev, view: 'upload' }));
+  const goToRemoteFiles = () => setState(prev => ({ ...prev, view: 'remote-files' }));
   const goToReview = async (docId: string) => {
     setState(prev => ({ ...prev, view: 'review', selectedDocId: docId }));
     // Load Q&A pairs khi vào review screen
@@ -227,7 +229,7 @@ const App: React.FC = () => {
               </div>
             </div>
           ) : (
-            <Dashboard documents={state.documents} onUploadClick={goToUpload} onViewSamples={goToReview} onDeleteDoc={deleteDoc} />
+            <Dashboard documents={state.documents} onUploadClick={goToUpload} onViewSamples={goToReview} onDeleteDoc={deleteDoc} onRemoteFilesClick={goToRemoteFiles} />
           )}
         </>
       )}
@@ -242,6 +244,12 @@ const App: React.FC = () => {
           onUpdateQA={updateQA} 
           onDeleteQA={deleteQA}
           onGenerateMore={handleGenerateMore}
+        />
+      )}
+      {state.view === 'remote-files' && (
+        <RemoteFilesScreen 
+          onBack={goToDashboard}
+          onViewDocument={goToReview}
         />
       )}
 

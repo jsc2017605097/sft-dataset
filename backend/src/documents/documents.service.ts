@@ -69,6 +69,57 @@ export class DocumentsService {
   }
 
   /**
+   * Tìm Document theo filename (dùng cho RemoteFilesService)
+   * Match logic: so sánh normalized filename (loại bỏ UUID prefix, normalize encoding)
+   * @param fileName - Tên file cần tìm (có thể có UUID prefix)
+   * @returns Document nếu tìm thấy, null nếu không
+   */
+  async findDocumentByFileName(fileName: string): Promise<Document | null> {
+    // Normalize filename để match
+    const normalizeForMatch = (name: string): string => {
+      // Loại bỏ UUID prefix nếu có
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i;
+      let cleanName = name.replace(uuidPattern, '');
+      
+      // Normalize encoding
+      try {
+        const utf8 = Buffer.from(cleanName, 'latin1').toString('utf8');
+        if (!utf8.includes('')) {
+          cleanName = utf8;
+        }
+      } catch {
+        // Giữ nguyên nếu decode fail
+      }
+      
+      return cleanName.trim().toLowerCase();
+    };
+
+    const normalizedSearchName = normalizeForMatch(fileName);
+
+    // Lấy tất cả documents và tìm match CHÍNH XÁC
+    const docs = await this.documentRepo.find();
+    
+    for (const doc of docs) {
+      const normalizedDocName = normalizeForMatch(doc.name);
+      
+      // Chỉ match chính xác tên file để tránh duplicate
+      if (normalizedDocName === normalizedSearchName) {
+        return {
+          id: doc.id,
+          name: this.normalizeFileName(doc.name),
+          size: doc.size,
+          uploadDate: doc.uploadDate,
+          totalSamples: doc.totalSamples,
+          reviewedSamples: doc.reviewedSamples,
+          status: doc.status,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Lấy Document + QAPairs theo docId
    */
   async findDocumentWithQAPairs(docId: string): Promise<{
@@ -241,10 +292,22 @@ export class DocumentsService {
     const existingQuestions = doc.qaPairs.map((qa) => qa.question);
 
     // Generate Q&A pairs mới từ extractedText
-    const newGeneratedQAs = await this.ollamaService.generateQAPairs(
-      doc.extractedText,
-      count,
-    );
+    let newGeneratedQAs: GeneratedQA[];
+    try {
+      newGeneratedQAs = await this.ollamaService.generateQAPairs(
+        doc.extractedText,
+        count,
+      );
+    } catch (error) {
+      // Nếu lỗi do nội dung quá ngắn, trả về message thân thiện
+      if (error.status === 400 && error.message.includes('quá ngắn')) {
+        throw new BadRequestException(
+          'Nội dung tài liệu đã hết hoặc quá ngắn. Không thể tạo thêm Q&A pairs. Hãy thử với tài liệu khác.',
+        );
+      }
+      // Lỗi khác, throw lại
+      throw error;
+    }
 
     if (newGeneratedQAs.length === 0) {
       // Nếu không tạo được Q&A mới nào, có thể đã hết nội dung
