@@ -173,44 +173,64 @@ export class OllamaService implements OnModuleInit {
       
       // Append technical format rules (FIX CỨNG - không cho user edit)
       systemPrompt += `
-3. Format: BẮT BUỘC phải trả về JSON array với format chính xác:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  FORMAT QUY ĐỊNH NGHIÊM NGẶT - KHÔNG ĐƯỢC VI PHẠM ⚠️
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3. OUTPUT FORMAT (BẮT BUỘC):
+   ✅ PHẢI trả về JSON ARRAY trực tiếp như sau:
+   
    [
      {"question": "Câu hỏi 1", "answer": "Câu trả lời 1"},
-     {"question": "Câu hỏi 2", "answer": "Câu trả lời 2"}
+     {"question": "Câu hỏi 2", "answer": "Câu trả lời 2"},
+     {"question": "Câu hỏi 3", "answer": "Câu trả lời 3"}
    ]
-4. Số lượng: Tạo chính xác ${count} cặp Q&A`;
+   
+   ❌ TUYỆT ĐỐI KHÔNG ĐƯỢC wrap trong object như:
+   {"questions_answers": [...]}  ← SAI
+   {"questionsAndAnswers": [...]}  ← SAI
+   {"questionsAnswers": [...]}  ← SAI
+   {"qaPairs": [...]}  ← SAI
+   {"data": [...]}  ← SAI
+   
+   ❌ TUYỆT ĐỐI KHÔNG ĐƯỢC dùng numeric keys:
+   {"0": {...}, "1": {...}}  ← SAI
+   
+   ❌ TUYỆT ĐỐI KHÔNG ĐƯỢC thiếu question hoặc answer:
+   {"question": "..."}  ← SAI (thiếu answer)
+   {"answer": "..."}  ← SAI (thiếu question)
+
+4. Số lượng: Tạo CHÍNH XÁC ${count} cặp Q&A`;
 
       // Nếu đã có câu hỏi trước đó, chỉ lấy 15 câu gần nhất để tránh context quá dài
       if (existingQuestions.length > 0) {
         const recentQuestions = existingQuestions.slice(-15); // Chỉ lấy 15 câu gần nhất
-        systemPrompt += `\n5. TRÁNH TRÙNG LẶP: Đã có ${existingQuestions.length} câu hỏi. Dưới đây là ${recentQuestions.length} câu gần nhất - BẠN PHẢI tạo câu hỏi MỚI, HOÀN TOÀN KHÁC về nội dung và ngữ nghĩa:
+        systemPrompt += `
+5. TRÁNH TRÙNG LẶP: Đã có ${existingQuestions.length} câu hỏi. Dưới đây là ${recentQuestions.length} câu gần nhất.
+   BẠN PHẢI tạo câu hỏi MỚI, HOÀN TOÀN KHÁC về nội dung và ngữ nghĩa:
 ${recentQuestions.map((q, idx) => `   ${idx + 1}. ${q}`).join('\n')}`;
-      } else {
-        systemPrompt += `\n5. KHÔNG được trả về object với numeric keys như {"0": "...", "1": "..."}`;
       }
 
       systemPrompt += `
-6. KHÔNG được trả về chỉ answers, PHẢI có cả question và answer
-7. Chỉ trả về JSON array, KHÔNG có text thêm, KHÔNG có markdown, KHÔNG có giải thích
 
-VÍ DỤ ĐÚNG:
-[
-  {"question": "Tội phạm là gì?", "answer": "Tội phạm là hành vi nguy hiểm cho xã hội..."},
-  {"question": "Độ tuổi chịu trách nhiệm hình sự?", "answer": "Người từ đủ 16 tuổi..."}
-]
-
-VÍ DỤ SAI (KHÔNG ĐƯỢC):
-{"0": "answer 1", "1": "answer 2"}  ← SAI
-{"question": "..."}  ← SAI (thiếu answer hoặc không phải array)
-"text plain"  ← SAI`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NHẮC LẠI: Chỉ trả về ARRAY, KHÔNG wrap trong object!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
       // Giới hạn chunk text để tránh context quá dài (3000 chars thay vì 8000)
       const maxChunkInPrompt = 3000;
       let userPrompt = `Dựa trên phần tài liệu pháp luật sau đây, hãy tạo CHÍNH XÁC ${count} cặp câu hỏi và câu trả lời MỚI (không trùng với các câu đã có):
 
+━━━━━━━ NỘI DUNG TÀI LIỆU ━━━━━━━
 ${chunkText.substring(0, maxChunkInPrompt)}${chunkText.length > maxChunkInPrompt ? '...' : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...] - KHÔNG có gì khác ngoài JSON array.`;
+⚠️  QUAN TRỌNG - ĐỌC KỸ:
+- Trả về ARRAY trực tiếp: [{"question": "...", "answer": "..."}, ...]
+- KHÔNG wrap trong object: {"key": [...]}
+- KHÔNG có text giải thích, KHÔNG có markdown
+- CHỈ có JSON array thuần túy`;
 
       // Gọi Ollama API với /api/generate endpoint
       const requestBody = {
@@ -223,6 +243,8 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
       console.log(`[Ollama] Calling endpoint: ${this.ollamaEndpoint}`);
       console.log(`[Ollama] Model: ${this.defaultModel}`);
       console.log(`[Ollama] Prompt length: ${requestBody.prompt.length} chars (system: ${systemPrompt.length}, user: ${userPrompt.length})`);
+      console.log('[Ollama] System Prompt:', systemPrompt);
+      console.log('[Ollama] User Prompt preview (first 500 chars):', userPrompt.substring(0, 500));
       
       const response = await fetch(this.ollamaEndpoint, {
         method: 'POST',
@@ -297,12 +319,17 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
         .replace(/```\n?/g, '')
         .trim();
 
-      // Chỉ log preview, không log toàn bộ (có thể rất dài)
-      console.log('[Ollama] Cleaned text preview (first 300 chars):', cleanedText.substring(0, 300) + '...');
+      // Log preview hoặc full text nếu ngắn
+      if (cleanedText.length <= 1000) {
+        console.log('[Ollama] Cleaned text (full):', cleanedText);
+      } else {
+        console.log('[Ollama] Cleaned text preview (first 500 chars):', cleanedText.substring(0, 500) + '...');
+      }
 
       let qaPairs: GeneratedQA[];
       try {
         qaPairs = JSON.parse(cleanedText);
+        console.log(`[Ollama] ✅ JSON parsed successfully. Type: ${Array.isArray(qaPairs) ? 'Array' : typeof qaPairs}, Length/Keys: ${Array.isArray(qaPairs) ? qaPairs.length : Object.keys(qaPairs || {}).length}`);
       } catch (parseError) {
         console.error('[Ollama] JSON parse error:', parseError);
         console.error('[Ollama] Text that failed to parse:', cleanedText.substring(0, 1000));
@@ -331,19 +358,22 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
       // Validate format
       // Ollama có thể trả về:
       // 1. Array: [{question, answer}, ...]
-      // 2. Object với numeric keys: {"0": {question, answer}, "1": {...}}
-      // 3. Single object: {question, answer}
+      // 2. Object với key chứa array
+      // 3. Object với numeric keys: {"0": {question, answer}, "1": {...}}
+      // 4. Single object: {question, answer}
       if (!Array.isArray(qaPairs)) {
         // Nếu là object, xử lý tùy trường hợp
         if (typeof qaPairs === 'object' && qaPairs !== null) {
           const qaObj = qaPairs as any;
+          const allKeys = Object.keys(qaObj);
           
-          // Case 1: Object với key chứa array (phổ biến: questionsAnswers, qaPairs, data, results, items)
-          const commonArrayKeys = ['questionsAnswers', 'qaPairs', 'qa_pairs', 'data', 'results', 'items', 'questions'];
+          console.log(`[Ollama] Response is object, not array. Keys: [${allKeys.join(', ')}]`);
+          
+          // Case 1: TÌM BẤT KỲ KEY NÀO chứa array (không cần list cố định)
           let foundArrayKey = false;
-          for (const key of commonArrayKeys) {
-            if (Array.isArray(qaObj[key])) {
-              console.log(`[Ollama] Found array in key "${key}", extracting...`);
+          for (const key of allKeys) {
+            if (Array.isArray(qaObj[key]) && qaObj[key].length > 0) {
+              console.log(`[Ollama] ✅ Found array in key "${key}" with ${qaObj[key].length} items, extracting...`);
               qaPairs = qaObj[key] as GeneratedQA[];
               foundArrayKey = true;
               break;
@@ -358,7 +388,7 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
             }
             // Case 3: Object với numeric keys {"0": {...}, "1": {...}}
             else {
-              console.log('[Ollama] Converting object with numeric keys to array');
+              console.log('[Ollama] ⚠️ No array found in any key. Treating as numeric-keyed object...');
               const objectKeys = Object.keys(qaObj).sort((a, b) => {
                 const numA = parseInt(a, 10);
                 const numB = parseInt(b, 10);
@@ -368,7 +398,7 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
                 return a.localeCompare(b);
               });
               qaPairs = objectKeys.map(key => qaObj[key]).filter(item => item !== null && item !== undefined) as GeneratedQA[];
-              console.log(`[Ollama] Converted ${qaPairs.length} items from object`);
+              console.log(`[Ollama] Converted ${qaPairs.length} items from object with keys: [${objectKeys.join(', ')}]`);
             }
           }
         } else {
@@ -380,34 +410,43 @@ NHỚ: Trả về JSON array format: [{"question": "...", "answer": "..."}, ...]
       }
 
       // Validate mỗi item có question và answer - Validation chặt chẽ hơn
-      const validPairs = qaPairs.filter((item) => {
+      const validPairs = qaPairs.filter((item, index) => {
         if (!item || typeof item !== 'object') {
-          console.warn('[Ollama] Invalid item (not object):', item);
+          console.warn(`[Ollama] ❌ Item #${index} is not an object:`, typeof item, item);
           return false;
         }
         const hasQuestion = typeof item.question === 'string' && item.question.trim().length > 0;
         const hasAnswer = typeof item.answer === 'string' && item.answer.trim().length > 0;
         
         if (!hasQuestion || !hasAnswer) {
-          console.warn('[Ollama] Invalid item (missing question/answer):', {
+          console.warn(`[Ollama] ❌ Item #${index} missing question/answer:`, {
             hasQuestion,
             hasAnswer,
             keys: Object.keys(item),
-            sample: JSON.stringify(item).substring(0, 200),
+            itemType: typeof item,
+            itemValue: JSON.stringify(item).substring(0, 300),
           });
           return false;
         }
         return true;
       });
+      
+      console.log(`[Ollama] Validation result: ${validPairs.length}/${qaPairs.length} items are valid`);
 
       if (validPairs.length === 0) {
         // Log chi tiết để debug
-        console.error('[Ollama] No valid Q&A pairs found.');
-        console.error('[Ollama] Sample items:', qaPairs.slice(0, 3).map(item => ({
-          type: typeof item,
-          keys: item ? Object.keys(item) : [],
-          sample: JSON.stringify(item).substring(0, 200),
-        })));
+        console.error('[Ollama] ❌❌❌ No valid Q&A pairs found.');
+        console.error('[Ollama] Total items received:', qaPairs.length);
+        console.error('[Ollama] Sample items (first 2):');
+        qaPairs.slice(0, 2).forEach((item, idx) => {
+          console.error(`  Item #${idx}:`, {
+            type: typeof item,
+            isArray: Array.isArray(item),
+            keys: item && typeof item === 'object' ? Object.keys(item) : 'N/A',
+            fullValue: JSON.stringify(item, null, 2),
+          });
+        });
+        
         throw new HttpException(
           `Không có Q&A pair hợp lệ nào được tạo ra. Ollama trả về ${qaPairs.length} items nhưng không có item nào có format đúng {question: string, answer: string}. Có thể Ollama không hiểu prompt hoặc trả về format sai.`,
           HttpStatus.INTERNAL_SERVER_ERROR,
