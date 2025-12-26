@@ -176,13 +176,18 @@ export class RemoteFilesService {
 
     let qaPairs: GeneratedQA[] = [];
     let extractedText = '';
+    let lastChunkIndex = 0;
+    let totalChunks = 0;
 
     if (autoGenerate) {
       // Step 1: Extract text từ file bằng Tika
       extractedText = await this.tikaService.extractText(fileBuffer);
 
-      // Step 2: Generate Q&A pairs từ text bằng Ollama
-      qaPairs = await this.ollamaService.generateQAPairs(extractedText, count);
+      // Step 2: Generate Q&A pairs từ text bằng Ollama với chunk tracking
+      const result = await this.ollamaService.generateQAPairs(extractedText, count, 0);
+      qaPairs = result.qaPairs;
+      lastChunkIndex = result.lastChunkIndex;
+      totalChunks = result.totalChunks;
     }
 
     // Normalize tên file để tránh lỗi encoding tiếng Việt
@@ -219,13 +224,15 @@ export class RemoteFilesService {
       status: 'Ready',
     };
 
-    // Lưu Document + QAPairs + extractedText xuống SQLite
+    // Lưu Document + QAPairs + extractedText + chunk tracking xuống SQLite
     await this.documentsService.createDocumentWithQAPairs(
       document,
       qaPairs,
       extractedText,
       userId,
       username,
+      lastChunkIndex,
+      totalChunks,
     );
 
     return document;

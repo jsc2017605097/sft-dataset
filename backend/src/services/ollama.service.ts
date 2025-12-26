@@ -474,14 +474,20 @@ ${chunkText.substring(0, maxChunkInPrompt)}${chunkText.length > maxChunkInPrompt
   }
 
   /**
-   * Generate Q&A pairs từ text sử dụng Ollama LLM với retry logic
+   * Generate Q&A pairs từ text sử dụng Ollama LLM với retry logic và chunk tracking
    * Tự động retry nếu chưa đủ số lượng yêu cầu, đảm bảo không trùng lặp
+   * Xử lý tuần tự các chunk từ startChunkIndex để đảm bảo coverage toàn bộ tài liệu
    * @param text - Văn bản đã được extract từ Tika
    * @param count - Số lượng Q&A pairs cần tạo (từ UI setting)
-   * @returns Mảng các Q&A pairs với format {question, answer}
+   * @param startChunkIndex - Chunk bắt đầu xử lý (0-based, default 0 for backward compatibility)
+   * @returns Object chứa qaPairs, lastChunkIndex, và totalChunks
    * @throws HttpException nếu Ollama server không phản hồi hoặc response không hợp lệ
    */
-  async generateQAPairs(text: string, count: number): Promise<GeneratedQA[]> {
+  async generateQAPairs(
+    text: string, 
+    count: number, 
+    startChunkIndex: number = 0
+  ): Promise<{ qaPairs: GeneratedQA[], lastChunkIndex: number, totalChunks: number }> {
     // Validate text có đủ dài không (ít nhất 100 chars)
     const trimmedText = text.trim();
     if (trimmedText.length < 100) {
@@ -492,53 +498,54 @@ ${chunkText.substring(0, maxChunkInPrompt)}${chunkText.length > maxChunkInPrompt
     }
 
     const allQAPairs: GeneratedQA[] = [];
-    let attempts = 0;
-    const maxAttempts = 10; // Tránh infinite loop
     const minPerAttempt = Math.max(1, Math.floor(count / 5)); // Ít nhất 1, hoặc 1/5 số lượng yêu cầu
 
-    console.log(`[Ollama] Bắt đầu generate ${count} Q&A pairs với retry logic`);
+    console.log(`[Ollama] Bắt đầu generate ${count} Q&A pairs từ chunk index ${startChunkIndex}`);
 
-    // Tách text thành nhiều chunk để mỗi attempt dùng context khác nhau
+    // Tách text thành nhiều chunk
     const chunks = this.splitTextIntoChunks(trimmedText);
-    console.log(`[Ollama] Text được tách thành ${chunks.length} chunk (max ~3000 chars mỗi chunk)`);
+    const totalChunks = chunks.length;
+    console.log(`[Ollama] Text được tách thành ${totalChunks} chunks (max ~3000 chars mỗi chunk)`);
 
-    while (allQAPairs.length < count && attempts < maxAttempts) {
-      attempts++;
+    // Validate startChunkIndex
+    if (startChunkIndex >= totalChunks) {
+      console.warn(`[Ollama] ⚠️ startChunkIndex (${startChunkIndex}) >= totalChunks (${totalChunks}). Đã hết nội dung.`);
+      return { qaPairs: [], lastChunkIndex: startChunkIndex, totalChunks };
+    }
+
+    let currentChunkIndex = startChunkIndex;
+    let attemptsOnCurrentChunk = 0;
+    const maxAttemptsPerChunk = 3; // Tối đa 3 lần retry cho mỗi chunk
+
+    // Process chunks sequentially from startChunkIndex
+    while (allQAPairs.length < count && currentChunkIndex < totalChunks) {
+      attemptsOnCurrentChunk++;
       const needed = count - allQAPairs.length;
-      const requestCount = Math.max(minPerAttempt, needed); // Yêu cầu ít nhất minPerAttempt hoặc số còn thiếu
+      const requestCount = Math.max(minPerAttempt, needed);
 
+      const chunkText = chunks[currentChunkIndex];
       console.log(
-        `[Ollama] Attempt ${attempts}/${maxAttempts}: Đã có ${allQAPairs.length}/${count}, cần thêm ${needed} cặp`,
+        `[Ollama] Processing chunk ${currentChunkIndex + 1}/${totalChunks} (attempt ${attemptsOnCurrentChunk}/${maxAttemptsPerChunk}): Đã có ${allQAPairs.length}/${count}, cần thêm ${needed} cặp`,
+      );
+      console.log(
+        `[Ollama] Chunk ${currentChunkIndex + 1} length: ${chunkText.length} chars`,
       );
 
       try {
-        // Lấy danh sách câu hỏi đã có để tránh trùng lặp
-        const existingQuestions = allQAPairs.map((qa) => qa.question);
-
-        // Chọn chunk theo vòng tròn để mỗi attempt dùng phần context khác nhau
-        const chunkIndex = (attempts - 1) % chunks.length;
-        const chunkText = chunks[chunkIndex];
-        console.log(
-          `[Ollama] Attempt ${attempts}: sử dụng chunk #${chunkIndex + 1}/${chunks.length} với độ dài ${chunkText.length} chars`,
-        );
-
         // Kiểm tra chunk có đủ dài không (ít nhất 100 chars)
         if (chunkText.trim().length < 100) {
           console.warn(
-            `[Ollama] Attempt ${attempts}: Chunk quá ngắn (${chunkText.length} chars), không đủ để tạo Q&A. Dừng lại.`,
+            `[Ollama] Chunk ${currentChunkIndex + 1}: Quá ngắn (${chunkText.length} chars), chuyển sang chunk tiếp theo`,
           );
-          // Nếu đã có ít nhất 1 Q&A, break; nếu không thì throw error
-          if (allQAPairs.length > 0) {
-            break;
-          } else {
-            throw new HttpException(
-              'Nội dung tài liệu quá ngắn hoặc đã hết. Không thể tạo thêm Q&A pairs.',
-              HttpStatus.BAD_REQUEST,
-            );
-          }
+          currentChunkIndex++;
+          attemptsOnCurrentChunk = 0;
+          continue;
         }
 
-        // Gọi Ollama với chunk đã chọn
+        // Lấy danh sách câu hỏi đã có để tránh trùng lặp
+        const existingQuestions = allQAPairs.map((qa) => qa.question);
+
+        // Gọi Ollama với chunk hiện tại
         const newPairs = await this.callOllamaOnce(chunkText, requestCount, existingQuestions);
 
         // Lọc duplicates
@@ -546,48 +553,67 @@ ${chunkText.substring(0, maxChunkInPrompt)}${chunkText.length > maxChunkInPrompt
 
         if (uniquePairs.length === 0) {
           console.warn(
-            `[Ollama] Attempt ${attempts}: Tất cả ${newPairs.length} cặp đều bị trùng lặp, bỏ qua`,
+            `[Ollama] Chunk ${currentChunkIndex + 1} attempt ${attemptsOnCurrentChunk}: Tất cả ${newPairs.length} cặp đều bị trùng lặp`,
           );
+          
+          // Nếu đã retry đủ lần cho chunk này, chuyển sang chunk tiếp theo
+          if (attemptsOnCurrentChunk >= maxAttemptsPerChunk) {
+            console.log(`[Ollama] Chuyển sang chunk ${currentChunkIndex + 2}/${totalChunks}`);
+            currentChunkIndex++;
+            attemptsOnCurrentChunk = 0;
+          }
         } else {
           allQAPairs.push(...uniquePairs);
           console.log(
-            `[Ollama] Attempt ${attempts}: Thêm được ${uniquePairs.length} cặp mới (${newPairs.length - uniquePairs.length} bị trùng)`,
+            `[Ollama] Chunk ${currentChunkIndex + 1}: Thêm được ${uniquePairs.length} cặp mới (${newPairs.length - uniquePairs.length} bị trùng)`,
           );
+          
+          // Nếu đã đủ Q&A, tăng index để lần sau bắt đầu từ chunk tiếp theo
+          if (allQAPairs.length >= count) {
+            currentChunkIndex++;
+            break;
+          }
+          
+          // Reset attempts vì đã thành công
+          attemptsOnCurrentChunk = 0;
+          // Chuyển sang chunk tiếp theo
+          currentChunkIndex++;
         }
       } catch (error) {
-        console.error(`[Ollama] Attempt ${attempts} failed:`, error);
-        // Nếu là lỗi đầu tiên, throw luôn
-        if (attempts === 1) {
+        console.error(`[Ollama] Chunk ${currentChunkIndex + 1} attempt ${attemptsOnCurrentChunk} failed:`, error);
+        
+        // Nếu là chunk đầu tiên và attempt đầu tiên, throw luôn
+        if (currentChunkIndex === startChunkIndex && attemptsOnCurrentChunk === 1 && allQAPairs.length === 0) {
           throw error;
         }
-        // Nếu đã có một số pairs, log warning và tiếp tục
-        if (allQAPairs.length > 0) {
+        
+        // Nếu đã retry đủ lần, chuyển sang chunk tiếp theo
+        if (attemptsOnCurrentChunk >= maxAttemptsPerChunk) {
           console.warn(
-            `[Ollama] Attempt ${attempts} failed nhưng đã có ${allQAPairs.length} cặp, tiếp tục retry...`,
+            `[Ollama] Chunk ${currentChunkIndex + 1} failed sau ${attemptsOnCurrentChunk} attempts, chuyển sang chunk tiếp theo`,
           );
-        } else {
-          // Nếu chưa có gì và đã retry nhiều lần, throw error
-          throw error;
+          currentChunkIndex++;
+          attemptsOnCurrentChunk = 0;
         }
-      }
-
-      // Nếu đã đủ, break
-      if (allQAPairs.length >= count) {
-        console.log(
-          `[Ollama] ✅ Đã đủ ${allQAPairs.length}/${count} cặp sau ${attempts} attempts`,
-        );
-        break;
       }
     }
 
-    // Nếu vẫn chưa đủ sau maxAttempts, log warning nhưng vẫn return
-    if (allQAPairs.length < count) {
+    // Logging kết quả
+    if (allQAPairs.length >= count) {
+      console.log(
+        `[Ollama] ✅ Đã đủ ${allQAPairs.length}/${count} cặp. Đã xử lý đến chunk ${currentChunkIndex}/${totalChunks}`,
+      );
+    } else if (currentChunkIndex >= totalChunks) {
       console.warn(
-        `[Ollama] ⚠️ Chỉ tạo được ${allQAPairs.length}/${count} cặp sau ${attempts} attempts. Có thể tài liệu không đủ nội dung hoặc Ollama không thể tạo thêm câu hỏi mới.`,
+        `[Ollama] ⚠️ Đã hết chunks. Chỉ tạo được ${allQAPairs.length}/${count} cặp.`,
       );
     }
 
-    return allQAPairs.slice(0, count); // Đảm bảo không vượt quá số lượng yêu cầu
+    return { 
+      qaPairs: allQAPairs.slice(0, count), // Đảm bảo không vượt quá số lượng yêu cầu
+      lastChunkIndex: currentChunkIndex, // Chunk tiếp theo cần xử lý
+      totalChunks: totalChunks
+    };
   }
 }
 

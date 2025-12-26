@@ -10,6 +10,8 @@ export interface Document {
   reviewedSamples: number;
   status: 'Ready' | 'Processing' | 'Failed';
   createdBy?: string; // Username của người tạo document
+  lastProcessedChunkIndex?: number; // Chunk cuối cùng đã xử lý (0-based index)
+  totalChunks?: number; // Tổng số chunks của tài liệu
 }
 
 export type QAStatus = 'Pending' | 'Reviewed' | 'Edited';

@@ -76,8 +76,15 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   const totalCount = qaPairs.length;
   const progress = qaPairs.length > 0 ? (reviewedCount / qaPairs.length) * 100 : 0;
 
+  // Chunk tracking: Kiểm tra xem đã xử lý hết chunks chưa
+  const hasChunkTracking = document.totalChunks !== undefined && document.totalChunks > 0;
+  const isChunkExhausted = hasChunkTracking && 
+    document.lastProcessedChunkIndex !== undefined && 
+    document.lastProcessedChunkIndex >= document.totalChunks;
+  const actualIsExhausted = isExhausted || isChunkExhausted;
+
   const handleGenerateMore = async () => {
-    if (isGenerating || isExhausted) return;
+    if (isGenerating || actualIsExhausted) return;
     
     setIsGenerating(true);
     setGenerateError(null);
@@ -174,11 +181,24 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                     <div className="h-4 w-px bg-gray-300"></div>
                   </>
                 )}
-                <div className="flex items-center gap-2">
-                  <div className="w-32 h-1.5 bg-gray-100 rounded-full">
-                    <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-32 h-1.5 bg-gray-100 rounded-full">
+                      <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">Đã duyệt {reviewedCount} / {qaPairs.length}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">Đã duyệt {reviewedCount} / {qaPairs.length}</span>
+                  {hasChunkTracking && (
+                    <>
+                      <div className="h-4 w-px bg-gray-300"></div>
+                      <div className="flex items-center gap-1.5">
+                        <Info size={12} className="text-blue-500" />
+                        <span className="text-[10px] font-medium text-gray-600">
+                          Chunks: <span className="font-bold text-blue-600">{document.lastProcessedChunkIndex}/{document.totalChunks}</span>
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -219,9 +239,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
             </div>
             <button
               onClick={() => setShowGenerateModal(true)}
-              disabled={isExhausted || isGenerating}
+              disabled={actualIsExhausted || isGenerating}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-                isExhausted || isGenerating
+                actualIsExhausted || isGenerating
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
               }`}
@@ -231,7 +251,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                   <Loader2 size={14} className="animate-spin" />
                   <span>Đang sinh...</span>
                 </>
-              ) : isExhausted ? (
+              ) : actualIsExhausted ? (
                 <>
                   <AlertCircle size={14} />
                   <span>Đã hết nội dung</span>

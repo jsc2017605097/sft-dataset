@@ -58,13 +58,18 @@ export class UploadService {
 
     let qaPairs = [];
     let extractedText = '';
+    let lastChunkIndex = 0;
+    let totalChunks = 0;
 
     if (autoGenerate) {
       // Step 1: Extract text từ file bằng Tika
       extractedText = await this.tikaService.extractText(file.buffer);
 
-      // Step 2: Generate Q&A pairs từ text bằng Ollama
-      qaPairs = await this.ollamaService.generateQAPairs(extractedText, count);
+      // Step 2: Generate Q&A pairs từ text bằng Ollama với chunk tracking
+      const result = await this.ollamaService.generateQAPairs(extractedText, count, 0);
+      qaPairs = result.qaPairs;
+      lastChunkIndex = result.lastChunkIndex;
+      totalChunks = result.totalChunks;
     }
 
     // Normalize tên file để tránh lỗi encoding tiếng Việt (UTF-8 bị hiển thị sai)
@@ -98,13 +103,15 @@ export class UploadService {
       status: 'Ready',
     };
 
-    // Lưu Document + QAPairs + extractedText xuống SQLite (transaction bên trong service)
+    // Lưu Document + QAPairs + extractedText + chunk tracking xuống SQLite
     await this.documentsService.createDocumentWithQAPairs(
       document,
       qaPairs,
       extractedText,
       userId,
       username,
+      lastChunkIndex,
+      totalChunks,
     );
 
     // Response cho FE giữ nguyên format cũ (fileName, fileSize, qaPairs)

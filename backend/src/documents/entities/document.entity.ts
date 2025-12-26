@@ -31,6 +31,13 @@ export class DocumentEntity {
   @Column({ type: 'text', nullable: true })
   extractedText: string | null; // Lưu text từ Tika để có thể generate thêm Q&A sau này
 
+  // Chunk tracking for progressive Q&A generation
+  @Column({ type: 'integer', default: 0 })
+  lastProcessedChunkIndex: number; // Chunk cuối cùng đã xử lý (0-based index)
+
+  @Column({ type: 'integer', default: 0 })
+  totalChunks: number; // Tổng số chunks của tài liệu
+
   // Auth & Authorization fields
   @Column({ nullable: true })
   userId: string; // Foreign key to users table

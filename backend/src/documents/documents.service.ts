@@ -33,12 +33,16 @@ export class DocumentsService {
     extractedText?: string,
     userId?: string,
     username?: string,
+    lastChunkIndex?: number,
+    totalChunks?: number,
   ): Promise<void> {
     const docEntity = this.documentRepo.create({
       ...document,
       extractedText: extractedText || null,
       userId: userId || null,
       createdBy: username || null,
+      lastProcessedChunkIndex: lastChunkIndex || 0,
+      totalChunks: totalChunks || 0,
     });
 
     const qaEntities: QAPairEntity[] = generatedQAs.map((qa, index) =>
@@ -88,6 +92,8 @@ export class DocumentsService {
       reviewedSamples: d.reviewedSamples,
       status: d.status,
       createdBy: d.createdBy || undefined,
+      lastProcessedChunkIndex: d.lastProcessedChunkIndex || 0,
+      totalChunks: d.totalChunks || 0,
     }));
   }
 
@@ -135,6 +141,8 @@ export class DocumentsService {
           totalSamples: doc.totalSamples,
           reviewedSamples: doc.reviewedSamples,
           status: doc.status,
+          lastProcessedChunkIndex: doc.lastProcessedChunkIndex || 0,
+          totalChunks: doc.totalChunks || 0,
         };
       }
     }
@@ -187,6 +195,8 @@ export class DocumentsService {
       reviewedSamples: doc.reviewedSamples,
       status: doc.status,
       createdBy: doc.createdBy || undefined,
+      lastProcessedChunkIndex: doc.lastProcessedChunkIndex || 0,
+      totalChunks: doc.totalChunks || 0,
     };
 
     return { document, qaPairs };
@@ -428,15 +438,21 @@ export class DocumentsService {
       );
     }
 
-    // Lấy danh sách câu hỏi đã có để tránh trùng lặp
+    // Lấy danh sách câu hỏi đã có để tránh trùng lặp ở DocumentsService level
     const existingQuestions = doc.qaPairs.map((qa) => qa.question);
 
-    // Generate Q&A pairs mới từ extractedText
-    let newGeneratedQAs: GeneratedQA[];
+    // Backward compatible: Nếu chưa có tracking, bắt đầu từ chunk 0
+    const startChunkIndex = doc.lastProcessedChunkIndex || 0;
+
+    console.log(`[DocumentsService] Generate more Q&A from chunk index ${startChunkIndex}`);
+
+    // Generate Q&A pairs mới từ extractedText với chunk tracking
+    let result: { qaPairs: GeneratedQA[], lastChunkIndex: number, totalChunks: number };
     try {
-      newGeneratedQAs = await this.ollamaService.generateQAPairs(
+      result = await this.ollamaService.generateQAPairs(
         doc.extractedText,
         count,
+        startChunkIndex, // Bắt đầu từ chunk đã lưu
       );
     } catch (error) {
       // Nếu lỗi do nội dung quá ngắn, trả về message thân thiện
@@ -448,6 +464,15 @@ export class DocumentsService {
       // Lỗi khác, throw lại
       throw error;
     }
+
+    const newGeneratedQAs = result.qaPairs;
+
+    // Lưu chunk tracking vào database
+    doc.lastProcessedChunkIndex = result.lastChunkIndex;
+    doc.totalChunks = result.totalChunks;
+    await this.documentRepo.save(doc);
+
+    console.log(`[DocumentsService] Updated chunk tracking: ${result.lastChunkIndex}/${result.totalChunks}`);
 
     if (newGeneratedQAs.length === 0) {
       // Nếu không tạo được Q&A mới nào, có thể đã hết nội dung
