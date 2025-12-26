@@ -1,5 +1,6 @@
 import {
   Controller,
+  Post,
   Patch,
   Delete,
   Param,
@@ -15,6 +16,27 @@ import { QAPair } from '../common/interfaces/frontend-types';
 @Controller('qa')
 export class QAController {
   constructor(private readonly documentsService: DocumentsService) {}
+
+  /**
+   * POST /api/qa
+   * Tạo Q&A pair thủ công
+   * Body: { docId, question, answer }
+   */
+  @Post()
+  async createQAPair(
+    @Body()
+    body: {
+      docId: string;
+      question: string;
+      answer: string;
+    },
+  ): Promise<QAPair> {
+    return this.documentsService.createManualQAPair(
+      body.docId,
+      body.question,
+      body.answer,
+    );
+  }
 
   /**
    * PATCH /api/qa/:id

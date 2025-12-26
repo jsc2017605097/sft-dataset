@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_GUARD } from '@nestjs/core';
 import { UploadModule } from './upload/upload.module';
 import { AppController } from './app.controller';
 import { TikaService } from './services/tika.service';
@@ -8,6 +9,8 @@ import { OllamaModule } from './services/ollama.module';
 import { DocumentsModule } from './documents/documents.module';
 import { RemoteFilesModule } from './remote-files/remote-files.module';
 import { SettingsModule } from './settings/settings.module';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 /**
  * App Module - Root module của NestJS application
@@ -25,6 +28,7 @@ import { SettingsModule } from './settings/settings.module';
       autoLoadEntities: true,
       synchronize: true, // CHỈ dùng cho dev; production nên dùng migration
     }),
+    AuthModule, // Auth module phải import đầu tiên
     UploadModule,
     DocumentsModule,
     RemoteFilesModule,
@@ -32,7 +36,14 @@ import { SettingsModule } from './settings/settings.module';
     OllamaModule,
   ],
   controllers: [AppController],
-  providers: [TikaService],
+  providers: [
+    TikaService,
+    // Apply JwtAuthGuard globally (tất cả routes đều require auth, trừ routes có @Public decorator)
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}
 

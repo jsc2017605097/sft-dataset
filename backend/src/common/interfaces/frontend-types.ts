@@ -13,6 +13,7 @@ export interface Document {
   totalSamples: number;
   reviewedSamples: number;
   status: 'Ready' | 'Processing' | 'Failed';
+  createdBy?: string; // Username của người tạo document (optional for backward compatibility)
 }
 
 export type QAStatus = 'Pending' | 'Reviewed' | 'Edited';

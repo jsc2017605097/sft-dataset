@@ -126,12 +126,16 @@ export class RemoteFilesService {
    * @param fileName - Tên file trong folder uploads
    * @param autoGenerate - Có tự động generate Q&A không
    * @param count - Số lượng Q&A pairs cần tạo
+   * @param userId - ID của user xử lý file
+   * @param username - Username của user xử lý file
    * @returns Document đã được tạo
    */
   async processFileFromPath(
     fileName: string,
     autoGenerate: boolean = true,
     count: number = 5,
+    userId?: string,
+    username?: string,
   ): Promise<Document> {
     const filePath = path.join(this.uploadsPath, fileName);
 
@@ -216,7 +220,13 @@ export class RemoteFilesService {
     };
 
     // Lưu Document + QAPairs + extractedText xuống SQLite
-    await this.documentsService.createDocumentWithQAPairs(document, qaPairs, extractedText);
+    await this.documentsService.createDocumentWithQAPairs(
+      document,
+      qaPairs,
+      extractedText,
+      userId,
+      username,
+    );
 
     return document;
   }

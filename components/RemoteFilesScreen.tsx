@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Loader2, ArrowLeft, ExternalLink, Play, Filter } from 'lucide-react';
 import { getRemoteFiles, processRemoteFile, RemoteFile } from '../services/apiService';
 import { Badge } from './Badge';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface RemoteFilesScreenProps {
   onBack: () => void;
@@ -9,6 +10,7 @@ interface RemoteFilesScreenProps {
 }
 
 export const RemoteFilesScreen: React.FC<RemoteFilesScreenProps> = ({ onBack, onViewDocument }) => {
+  const { showToast } = useNotification();
   const [files, setFiles] = useState<RemoteFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,10 +84,10 @@ export const RemoteFilesScreen: React.FC<RemoteFilesScreenProps> = ({ onBack, on
       setShowProcessModal(null);
       
       // Hiển thị thông báo thành công
-      alert(`Đã xử lý file "${fileName}" thành công!`);
+      showToast('success', `Đã xử lý file "${getDisplayFileName(fileName)}" thành công!`);
     } catch (err) {
       console.error('Lỗi khi xử lý file:', err);
-      alert(`Lỗi khi xử lý file "${fileName}": ${err instanceof Error ? err.message : 'Lỗi không xác định'}`);
+      showToast('error', `Lỗi khi xử lý file "${getDisplayFileName(fileName)}": ${err instanceof Error ? err.message : 'Lỗi không xác định'}`);
     } finally {
       setProcessingFile(null);
     }

@@ -22,12 +22,16 @@ export class UploadService {
    * @param file - File từ multer
    * @param autoGenerate - Có tự động generate Q&A không
    * @param count - Số lượng Q&A pairs cần tạo
+   * @param userId - ID của user upload file
+   * @param username - Username của user upload file
    * @returns ProcessFileResponseDto với fileName, fileSize, qaPairs
    */
   async processFile(
     file: Express.Multer.File | undefined,
     autoGenerate: boolean = true,
     count: number = 5,
+    userId?: string,
+    username?: string,
   ): Promise<ProcessFileResponseDto> {
     // Validate file
     if (!file) {
@@ -95,7 +99,13 @@ export class UploadService {
     };
 
     // Lưu Document + QAPairs + extractedText xuống SQLite (transaction bên trong service)
-    await this.documentsService.createDocumentWithQAPairs(document, qaPairs, extractedText);
+    await this.documentsService.createDocumentWithQAPairs(
+      document,
+      qaPairs,
+      extractedText,
+      userId,
+      username,
+    );
 
     // Response cho FE giữ nguyên format cũ (fileName, fileSize, qaPairs)
     return {

@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { Upload, X, FileText, ChevronDown, Check, Loader2, ArrowLeft } from 'lucide-react';
 import { FileStatus } from '../types';
 import { processFile } from '../services/apiService';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface UploadScreenProps {
   onBack: () => void;
@@ -19,6 +20,7 @@ interface UploadingFile {
 }
 
 export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }) => {
+  const { showToast } = useNotification();
   const [files, setFiles] = useState<UploadingFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [settings, setSettings] = useState({
@@ -79,8 +81,8 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
             : f
         ));
         
-        // Hiển thị alert cho user
-        alert(`Lỗi khi xử lý file "${fileItem.name}": ${error instanceof Error ? error.message : 'Lỗi không xác định'}`);
+        // Hiển thị thông báo cho user
+        showToast('error', `Lỗi khi xử lý file "${fileItem.name}": ${error instanceof Error ? error.message : 'Lỗi không xác định'}`);
       }
     }
 

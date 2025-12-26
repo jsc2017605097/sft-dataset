@@ -9,6 +9,7 @@ export interface Document {
   totalSamples: number;
   reviewedSamples: number;
   status: 'Ready' | 'Processing' | 'Failed';
+  createdBy?: string; // Username của người tạo document
 }
 
 export type QAStatus = 'Pending' | 'Reviewed' | 'Edited';
@@ -23,11 +24,30 @@ export interface QAPair {
   originalAnswer?: string;
 }
 
-export type ViewState = 'dashboard' | 'upload' | 'review' | 'remote-files' | 'settings';
+// Auth types
+export interface User {
+  id: string;
+  username: string;
+  email: string | null;
+  role: 'user' | 'admin';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  accessToken: string;
+}
+
+export type ViewState = 'login' | 'register' | 'dashboard' | 'upload' | 'review' | 'remote-files' | 'settings' | 'user-management';
 
 export interface AppState {
   view: ViewState;
   selectedDocId: string | null;
   documents: Document[];
   qaPairs: Record<string, QAPair[]>;
+  user: User | null;
+  accessToken: string | null;
+  isAuthenticated: boolean;
 }

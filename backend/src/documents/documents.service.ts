@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DocumentEntity } from './entities/document.entity';
 import { QAPairEntity } from './entities/qa-pair.entity';
+import { UserEntity } from '../auth/entities/user.entity';
 import { Document, QAPair } from '../common/interfaces/frontend-types';
 import { GeneratedQA } from '../common/interfaces/frontend-types';
 import { OllamaService } from '../services/ollama.service';
@@ -17,6 +18,8 @@ export class DocumentsService {
     private readonly documentRepo: Repository<DocumentEntity>,
     @InjectRepository(QAPairEntity)
     private readonly qaRepo: Repository<QAPairEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
     private readonly ollamaService: OllamaService,
   ) {}
 
@@ -28,10 +31,14 @@ export class DocumentsService {
     document: Document,
     generatedQAs: GeneratedQA[],
     extractedText?: string,
+    userId?: string,
+    username?: string,
   ): Promise<void> {
     const docEntity = this.documentRepo.create({
       ...document,
       extractedText: extractedText || null,
+      userId: userId || null,
+      createdBy: username || null,
     });
 
     const qaEntities: QAPairEntity[] = generatedQAs.map((qa, index) =>
@@ -54,9 +61,24 @@ export class DocumentsService {
 
   /**
    * Lấy danh sách Documents (cho Dashboard)
+   * Admin thấy tất cả, user thường chỉ thấy của mình
    */
-  async findAllDocuments(): Promise<Document[]> {
-    const docs = await this.documentRepo.find();
+  async findAllDocuments(userId?: string, userRole?: string): Promise<Document[]> {
+    let docs: DocumentEntity[];
+
+    // Admin xem tất cả, user thường chỉ xem của mình
+    if (userRole === 'admin') {
+      docs = await this.documentRepo.find({ relations: ['user'] });
+    } else if (userId) {
+      docs = await this.documentRepo.find({ 
+        where: { userId },
+        relations: ['user'],
+      });
+    } else {
+      // Fallback: không có auth info → trả về rỗng (hoặc tất cả nếu muốn backward compatible)
+      docs = [];
+    }
+
     return docs.map((d) => ({
       id: d.id,
       name: this.normalizeFileName(d.name),
@@ -65,6 +87,7 @@ export class DocumentsService {
       totalSamples: d.totalSamples,
       reviewedSamples: d.reviewedSamples,
       status: d.status,
+      createdBy: d.createdBy || undefined,
     }));
   }
 
@@ -121,17 +144,28 @@ export class DocumentsService {
 
   /**
    * Lấy Document + QAPairs theo docId
+   * Check ownership: user chỉ xem được document của mình, admin xem được tất cả
    */
-  async findDocumentWithQAPairs(docId: string): Promise<{
+  async findDocumentWithQAPairs(
+    docId: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<{
     document: Document;
     qaPairs: QAPair[];
   }> {
     const doc = await this.documentRepo.findOne({
       where: { id: docId },
-      relations: ['qaPairs'],
+      relations: ['qaPairs', 'user'],
     });
+    
     if (!doc) {
       throw new NotFoundException(`Document ${docId} không tồn tại`);
+    }
+
+    // Check ownership (nếu không phải admin)
+    if (userRole !== 'admin' && doc.userId && doc.userId !== userId) {
+      throw new NotFoundException(`Document ${docId} không tồn tại hoặc bạn không có quyền truy cập`);
     }
 
     const qaPairs: QAPair[] = doc.qaPairs.map((qa) => ({
@@ -152,6 +186,7 @@ export class DocumentsService {
       totalSamples: doc.totalSamples,
       reviewedSamples: doc.reviewedSamples,
       status: doc.status,
+      createdBy: doc.createdBy || undefined,
     };
 
     return { document, qaPairs };
@@ -228,19 +263,112 @@ export class DocumentsService {
   }
 
   /**
-   * Xóa 1 Document (và tất cả QAPairs liên quan - cascade)
+   * Tạo Q&A pair thủ công (manual creation)
+   * @param docId - ID của document
+   * @param question - Câu hỏi
+   * @param answer - Câu trả lời
+   * @returns QAPair đã tạo
    */
-  async deleteDocument(docId: string): Promise<void> {
+  async createManualQAPair(
+    docId: string,
+    question: string,
+    answer: string,
+  ): Promise<QAPair> {
+    // Kiểm tra document có tồn tại không
+    const doc = await this.documentRepo.findOne({ where: { id: docId } });
+    if (!doc) {
+      throw new NotFoundException(`Document ${docId} không tồn tại`);
+    }
+
+    // Validate input
+    if (!question || !question.trim()) {
+      throw new BadRequestException('Câu hỏi không được để trống');
+    }
+    if (!answer || !answer.trim()) {
+      throw new BadRequestException('Câu trả lời không được để trống');
+    }
+
+    // Tạo QAPair mới với ID unique
+    const qaId = `qa-${docId}-${Date.now()}`;
+    const qaEntity = this.qaRepo.create({
+      id: qaId,
+      docId,
+      question: question.trim(),
+      answer: answer.trim(),
+      status: 'Pending',
+    });
+
+    await this.qaRepo.save(qaEntity);
+
+    // Recalculate document stats
+    await this.recalculateDocumentStats(docId);
+
+    return {
+      id: qaEntity.id,
+      docId: qaEntity.docId,
+      question: qaEntity.question,
+      answer: qaEntity.answer,
+      status: qaEntity.status,
+    };
+  }
+
+  /**
+   * Xóa 1 Document (và tất cả QAPairs liên quan - cascade)
+   * Check ownership: user chỉ xóa được document của mình, admin xóa được tất cả
+   */
+  async deleteDocument(docId: string, userId?: string, userRole?: string): Promise<void> {
     const doc = await this.documentRepo.findOne({ where: { id: docId } });
     if (!doc) {
       // Xóa idempotent
       return;
     }
 
+    // Check ownership (nếu không phải admin)
+    if (userRole !== 'admin' && doc.userId && doc.userId !== userId) {
+      throw new NotFoundException(`Document ${docId} không tồn tại hoặc bạn không có quyền xóa`);
+    }
+
     // Xóa tất cả QAPairs trước (cascade)
     await this.qaRepo.delete({ docId });
     // Sau đó xóa Document
     await this.documentRepo.delete(docId);
+  }
+
+  /**
+   * Gán lại document cho user khác (Admin only)
+   * @param docId - ID của document
+   * @param newUserId - ID của user mới
+   * @returns Document đã update
+   */
+  async reassignDocument(docId: string, newUserId: string): Promise<Document> {
+    // Tìm document
+    const doc = await this.documentRepo.findOne({ where: { id: docId } });
+    if (!doc) {
+      throw new NotFoundException(`Document ${docId} không tồn tại`);
+    }
+
+    // Tìm user mới
+    const newUser = await this.userRepo.findOne({ where: { id: newUserId } });
+    if (!newUser) {
+      throw new NotFoundException(`User ${newUserId} không tồn tại`);
+    }
+
+    // Update ownership
+    doc.userId = newUser.id;
+    doc.createdBy = newUser.username;
+
+    await this.documentRepo.save(doc);
+
+    return {
+      id: doc.id,
+      name: this.normalizeFileName(doc.name),
+      size: doc.size,
+      uploadDate: doc.uploadDate,
+      totalSamples: doc.totalSamples,
+      reviewedSamples: doc.reviewedSamples,
+      status: doc.status,
+      createdBy: doc.createdBy || undefined,
+    };
   }
 
   /**
@@ -269,9 +397,16 @@ export class DocumentsService {
    * Generate thêm Q&A pairs cho document đã có
    * @param docId - ID của document
    * @param count - Số lượng Q&A pairs cần tạo thêm
+   * @param userId - ID của user hiện tại (để check ownership)
+   * @param userRole - Role của user hiện tại
    * @returns Mảng các Q&A pairs mới được tạo
    */
-  async generateMoreQAPairs(docId: string, count: number): Promise<QAPair[]> {
+  async generateMoreQAPairs(
+    docId: string,
+    count: number,
+    userId?: string,
+    userRole?: string,
+  ): Promise<QAPair[]> {
     // Lấy document với extractedText
     const doc = await this.documentRepo.findOne({
       where: { id: docId },
@@ -280,6 +415,11 @@ export class DocumentsService {
 
     if (!doc) {
       throw new NotFoundException(`Document ${docId} không tồn tại`);
+    }
+
+    // Check ownership (nếu không phải admin)
+    if (userRole !== 'admin' && doc.userId && doc.userId !== userId) {
+      throw new NotFoundException(`Document ${docId} không tồn tại hoặc bạn không có quyền thao tác`);
     }
 
     if (!doc.extractedText) {

@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TikaService } from './services/tika.service';
 import { OllamaService } from './services/ollama.service';
+import { Public } from './auth/public.decorator';
 
 /**
  * App Controller - Health check và system info
@@ -18,7 +19,9 @@ export class AppController {
    * GET /api/health
    * Health check endpoint - Kiểm tra server và các services
    * Note: Không cần 'api' prefix vì đã có global prefix trong main.ts
+   * Public endpoint - không cần authentication
    */
+  @Public()
   @Get('health')
   async getHealth() {
     const tikaEndpoint = this.configService.get<string>('TIKA_ENDPOINT') || 'http://localhost:9998/tika';
