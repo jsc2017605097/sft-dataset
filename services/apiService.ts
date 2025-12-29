@@ -238,6 +238,39 @@ export const processFile = async (
 };
 
 /**
+ * Process CSV template file: Upload CSV và parse Q&A pairs
+ * @param file - CSV file object từ browser
+ * @returns ProcessFileResponse với fileName, fileSize, qaPairs
+ */
+export const processTemplateFile = async (
+  file: File,
+): Promise<ProcessFileResponse> => {
+  try {
+    // Tạo FormData để gửi file
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Gọi Backend API với auth header
+    const response = await fetch(`${API_BASE_URL}/api/upload/process-template`, {
+      method: 'POST',
+      headers: getAuthHeadersForFormData(),
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: ProcessFileResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi khi gọi Backend API:', error);
+    throw error;
+  }
+};
+
+/**
  * Lấy danh sách Documents (cho Dashboard)
  */
 export const getDocuments = async (): Promise<Document[]> => {

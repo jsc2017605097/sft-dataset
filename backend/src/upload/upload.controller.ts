@@ -51,5 +51,29 @@ export class UploadController {
     const { autoGenerate = true, count = 5 } = body;
     return this.uploadService.processFile(file, autoGenerate, count, user.id, user.username);
   }
+
+  /**
+   * POST /api/upload/process-template
+   * Upload CSV template file và parse Q&A pairs
+   * User upload file sẽ là owner của document đó
+   * 
+   * Request:
+   * - multipart/form-data
+   * - file: File (CSV)
+   * 
+   * Response:
+   * - fileName: string
+   * - fileSize: string
+   * - qaPairs: GeneratedQA[]
+   */
+  @Post('process-template')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  async processTemplate(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @GetUser() user: UserEntity,
+  ): Promise<ProcessFileResponseDto> {
+    return this.uploadService.processTemplateFile(file, user.id, user.username);
+  }
 }
 

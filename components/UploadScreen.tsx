@@ -1,8 +1,8 @@
 
 import React, { useState, useCallback } from 'react';
-import { Upload, X, FileText, ChevronDown, Check, Loader2, ArrowLeft } from 'lucide-react';
+import { Upload, X, FileText, ChevronDown, Check, Loader2, ArrowLeft, Download } from 'lucide-react';
 import { FileStatus } from '../types';
-import { processFile } from '../services/apiService';
+import { processFile, processTemplateFile } from '../services/apiService';
 import { useNotification } from '../contexts/NotificationContext';
 
 interface UploadScreenProps {
@@ -23,6 +23,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
   const { showToast } = useNotification();
   const [files, setFiles] = useState<UploadingFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processMode, setProcessMode] = useState<'ai' | 'template'>('ai');
   const [settings, setSettings] = useState({
     autoGenerate: true,
     sentencesPerChunk: 5,
@@ -30,16 +31,39 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files).map((f: File) => ({
-        id: Math.random().toString(36).substr(2, 9),
-        name: f.name,
-        size: (f.size / (1024 * 1024)).toFixed(2) + ' MB',
-        status: 'Pending' as FileStatus,
-        progress: 0,
-        file: f, // Lưu File object để gửi lên Tika
-      }));
+      const newFiles = Array.from(e.target.files).map((f: File) => {
+        // Validate file type based on mode
+        if (processMode === 'template' && !f.name.toLowerCase().endsWith('.csv')) {
+          showToast('error', `File "${f.name}" không phải CSV. Vui lòng chọn file CSV.`);
+          return null;
+        }
+        if (processMode === 'ai' && !f.name.toLowerCase().match(/\.(pdf|docx)$/i)) {
+          showToast('error', `File "${f.name}" không phải PDF hoặc DOCX. Vui lòng chọn file PDF/DOCX.`);
+          return null;
+        }
+        
+        return {
+          id: Math.random().toString(36).substr(2, 9),
+          name: f.name,
+          size: (f.size / (1024 * 1024)).toFixed(2) + ' MB',
+          status: 'Pending' as FileStatus,
+          progress: 0,
+          file: f,
+        };
+      }).filter(f => f !== null) as UploadingFile[];
+      
       setFiles(prev => [...prev, ...newFiles]);
     }
+  };
+
+  const handleDownloadTemplate = () => {
+    const link = document.createElement('a');
+    link.href = '/templates/qa-template.csv';
+    link.download = 'qa-template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('success', 'Đã tải template mẫu thành công!');
   };
 
   const removeFile = (id: string) => {
@@ -57,14 +81,21 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
         // Update progress: Uploading
         setFiles(prev => prev.map(f => f.id === fileItem.id ? { ...f, progress: 20 } : f));
         
-        // Gọi Backend API để process file
+        // Gọi Backend API tùy theo mode
         setFiles(prev => prev.map(f => f.id === fileItem.id ? { ...f, progress: 50 } : f));
         
-        const result = await processFile(
-          fileItem.file,
-          settings.autoGenerate,
-          settings.sentencesPerChunk,
-        );
+        let result;
+        if (processMode === 'template') {
+          // Process CSV template
+          result = await processTemplateFile(fileItem.file);
+        } else {
+          // Process PDF/DOCX với AI
+          result = await processFile(
+            fileItem.file,
+            settings.autoGenerate,
+            settings.sentencesPerChunk,
+          );
+        }
 
         // Step 3: Hoàn thành (progress: 100%)
         setFiles(prev => prev.map(f => f.id === fileItem.id ? { ...f, progress: 100, status: 'Completed' } : f));
@@ -102,10 +133,65 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         <div className="p-8 border-b border-gray-100">
           <h2 className="text-2xl font-bold text-gray-900">Tải lên tài liệu</h2>
-          <p className="text-gray-500">Tải lên các tệp PDF hoặc DOCX để tự động tạo bộ câu hỏi huấn luyện SFT.</p>
+          <p className="text-gray-500">Tải lên các tệp PDF/DOCX để tự động tạo Q&A hoặc CSV template đã điền sẵn.</p>
         </div>
 
         <div className="p-8 space-y-8">
+          {/* Process Mode Selection */}
+          <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Chế độ xử lý</h3>
+            <div className="space-y-3">
+              <label className="flex items-center cursor-pointer group p-3 rounded-lg hover:bg-white transition-colors">
+                <input 
+                  type="radio" 
+                  name="processMode"
+                  value="ai"
+                  checked={processMode === 'ai'}
+                  onChange={(e) => {
+                    setProcessMode('ai');
+                    setFiles([]); // Clear files when switching mode
+                  }}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="ml-3 flex-1">
+                  <span className="text-sm font-medium text-gray-900">Tự động gen bằng AI</span>
+                  <p className="text-xs text-gray-500 mt-0.5">Upload PDF/DOCX, hệ thống tự động tạo Q&A bằng Ollama AI</p>
+                </div>
+              </label>
+              <label className="flex items-center cursor-pointer group p-3 rounded-lg hover:bg-white transition-colors">
+                <input 
+                  type="radio" 
+                  name="processMode"
+                  value="template"
+                  checked={processMode === 'template'}
+                  onChange={(e) => {
+                    setProcessMode('template');
+                    setFiles([]); // Clear files when switching mode
+                  }}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="ml-3 flex-1">
+                  <span className="text-sm font-medium text-gray-900">Xử lý theo template</span>
+                  <p className="text-xs text-gray-500 mt-0.5">Upload CSV template đã điền sẵn câu hỏi và câu trả lời</p>
+                </div>
+              </label>
+            </div>
+            {processMode === 'template' && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                >
+                  <Download size={16} />
+                  Tải template mẫu (CSV)
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Tip: Tải template mẫu, mở bằng Excel, điền câu hỏi và câu trả lời, sau đó Save as CSV (UTF-8) để tránh lỗi format.
+                </p>
+              </div>
+            )}
+          </div>
+
           <div 
             className="border-2 border-dashed border-gray-200 rounded-xl p-10 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 hover:border-blue-400 transition-all cursor-pointer group"
             onClick={() => document.getElementById('file-input')?.click()}
@@ -114,13 +200,15 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
               <Upload className="text-blue-600" size={24} />
             </div>
             <p className="text-gray-900 font-semibold">Nhấp hoặc kéo tệp vào đây để tải lên</p>
-            <p className="text-gray-500 text-sm mt-1">PDF, DOCX tối đa 50MB</p>
+            <p className="text-gray-500 text-sm mt-1">
+              {processMode === 'ai' ? 'PDF, DOCX tối đa 50MB' : 'CSV template tối đa 10MB'}
+            </p>
             <input 
               id="file-input"
               type="file" 
               className="hidden" 
               multiple 
-              accept=".pdf,.docx"
+              accept={processMode === 'ai' ? '.pdf,.docx' : '.csv'}
               onChange={handleFileChange}
             />
           </div>
@@ -167,38 +255,40 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
             </div>
           )}
 
-          <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Cấu hình xử lý</h3>
-            <div className="space-y-4">
-              <label className="flex items-center cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  checked={settings.autoGenerate}
-                  onChange={(e) => setSettings(prev => ({ ...prev, autoGenerate: e.target.checked }))}
-                />
-                <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
-                  Tự động tạo cặp Q&A bằng Ollama AI
-                </span>
-              </label>
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-sm font-medium text-gray-700">Số lượng Q&A pairs</span>
-                <div className="relative inline-block text-left">
-                  <select
-                    className="appearance-none block w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer"
-                    value={settings.sentencesPerChunk}
-                    onChange={(e) => setSettings(prev => ({ ...prev, sentencesPerChunk: parseInt(e.target.value) }))}
-                  >
-                    <option value={3}>3 pairs</option>
-                    <option value={5}>5 pairs</option>
-                    <option value={8}>8 pairs</option>
-                    <option value={10}>10 pairs</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+          {processMode === 'ai' && (
+            <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Cấu hình xử lý</h3>
+              <div className="space-y-4">
+                <label className="flex items-center cursor-pointer group">
+                  <input 
+                    type="checkbox" 
+                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={settings.autoGenerate}
+                    onChange={(e) => setSettings(prev => ({ ...prev, autoGenerate: e.target.checked }))}
+                  />
+                  <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+                    Tự động tạo cặp Q&A bằng Ollama AI
+                  </span>
+                </label>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-sm font-medium text-gray-700">Số lượng Q&A pairs</span>
+                  <div className="relative inline-block text-left">
+                    <select
+                      className="appearance-none block w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer"
+                      value={settings.sentencesPerChunk}
+                      onChange={(e) => setSettings(prev => ({ ...prev, sentencesPerChunk: parseInt(e.target.value) }))}
+                    >
+                      <option value={3}>3 pairs</option>
+                      <option value={5}>5 pairs</option>
+                      <option value={8}>8 pairs</option>
+                      <option value={10}>10 pairs</option>
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           <button
             onClick={processFiles}
