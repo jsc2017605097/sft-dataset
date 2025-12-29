@@ -111,3 +111,4 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
   );
 }
 
+
