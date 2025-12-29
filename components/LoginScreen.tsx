@@ -31,7 +31,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -60,7 +60,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="Nhập tên đăng nhập"
               disabled={isLoading}
               autoComplete="username"
@@ -76,7 +76,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="Nhập mật khẩu"
               disabled={isLoading}
               autoComplete="current-password"
@@ -86,7 +86,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
@@ -99,7 +99,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
             <button
               type="button"
               onClick={onNavigateToRegister}
-              className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
+              className="text-blue-600 hover:text-blue-700 font-medium hover:underline"
             >
               Đăng ký ngay
             </button>

@@ -156,45 +156,45 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <header className="sticky top-14 z-40 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} />
             </button>
             <div>
-              <h2 className="text-lg font-bold text-gray-900 truncate max-w-[300px]">{document.name}</h2>
-              <div className="flex items-center gap-3 mt-0.5">
+              <h2 className="text-base font-bold text-gray-900 truncate max-w-[250px]">{document.name}</h2>
+              <div className="flex items-center gap-2 mt-0.5">
                 {document.createdBy && (
                   <>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold">
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-[8px] font-bold">
                         {document.createdBy.charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-[10px] font-medium text-gray-600">
-                        Tạo bởi: <span className="font-semibold text-gray-900">{document.createdBy}</span>
+                      <span className="text-[9px] font-medium text-gray-600">
+                        <span className="font-semibold text-gray-900">{document.createdBy}</span>
                       </span>
                     </div>
-                    <div className="h-4 w-px bg-gray-300"></div>
+                    <div className="h-3 w-px bg-gray-300"></div>
                   </>
                 )}
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-32 h-1.5 bg-gray-100 rounded-full">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-24 h-1 bg-gray-100 rounded-full">
                       <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Đã duyệt {reviewedCount} / {qaPairs.length}</span>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase">{reviewedCount}/{qaPairs.length}</span>
                   </div>
                   {hasChunkTracking && (
                     <>
-                      <div className="h-4 w-px bg-gray-300"></div>
-                      <div className="flex items-center gap-1.5">
-                        <Info size={12} className="text-blue-500" />
-                        <span className="text-[10px] font-medium text-gray-600">
-                          Chunks: <span className="font-bold text-blue-600">{document.lastProcessedChunkIndex}/{document.totalChunks}</span>
+                      <div className="h-3 w-px bg-gray-300"></div>
+                      <div className="flex items-center gap-1">
+                        <Info size={11} className="text-blue-500" />
+                        <span className="text-[9px] font-medium text-gray-600">
+                          <span className="font-bold text-blue-600">{document.lastProcessedChunkIndex}/{document.totalChunks}</span>
                         </span>
                       </div>
                     </>
@@ -204,11 +204,11 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-6">
-            <div className="flex bg-white border border-gray-200 rounded-lg p-1">
+          <div className="hidden md:flex items-center gap-3">
+            <div className="flex bg-white border border-gray-200 rounded-lg p-0.5">
               <button 
                 onClick={() => { setFilter('All'); setActiveIndex(0); }} 
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                   filter === 'All' 
                     ? 'bg-blue-50 text-blue-700' 
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -218,7 +218,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
               </button>
               <button 
                 onClick={() => { setFilter('Reviewed'); setActiveIndex(0); }} 
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                   filter === 'Reviewed' 
                     ? 'bg-blue-50 text-blue-700' 
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -228,7 +228,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
               </button>
               <button 
                 onClick={() => { setFilter('Pending'); setActiveIndex(0); }} 
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                   filter === 'Pending' 
                     ? 'bg-blue-50 text-blue-700' 
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -240,7 +240,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
             <button
               onClick={() => setShowGenerateModal(true)}
               disabled={actualIsExhausted || isGenerating}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 actualIsExhausted || isGenerating
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
@@ -248,18 +248,18 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
             >
               {isGenerating ? (
                 <>
-                  <Loader2 size={14} className="animate-spin" />
+                  <Loader2 size={13} className="animate-spin" />
                   <span>Đang sinh...</span>
                 </>
               ) : actualIsExhausted ? (
                 <>
-                  <AlertCircle size={14} />
-                  <span>Đã hết nội dung</span>
+                  <AlertCircle size={13} />
+                  <span>Đã hết</span>
                 </>
               ) : (
                 <>
-                  <Plus size={14} />
-                  <span>Tiếp tục sinh mẫu</span>
+                  <Plus size={13} />
+                  <span>Tiếp tục sinh</span>
                 </>
               )}
             </button>

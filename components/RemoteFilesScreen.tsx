@@ -113,19 +113,17 @@ export const RemoteFilesScreen: React.FC<RemoteFilesScreenProps> = ({ onBack, on
   const unprocessedCount = files.filter(f => !f.isProcessed).length;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <button
-        onClick={onBack}
-        className="flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-8 transition-colors"
-      >
-        <ArrowLeft size={16} className="mr-2" />
-        Quay lại Bảng điều khiển
-      </button>
-
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={onBack}
+          className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+        >
+          <ArrowLeft size={18} />
+        </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý tài liệu từ xa</h1>
-          <p className="text-gray-500">Quản lý và xử lý các tài liệu trong folder uploads.</p>
+          <h1 className="text-xl font-bold text-gray-900">Quản lý tài liệu từ xa</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Quản lý và xử lý các tài liệu trong folder uploads.</p>
         </div>
       </div>
 

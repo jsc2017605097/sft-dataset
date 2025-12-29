@@ -321,10 +321,10 @@ const AppContent: React.FC = () => {
   // Show loading screen khi đang check auth
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin text-indigo-600" size={48} />
-          <p className="text-gray-600">Đang kiểm tra phiên đăng nhập...</p>
+          <Loader2 className="animate-spin text-blue-600" size={48} />
+          <p className="text-gray-600 text-sm">Đang kiểm tra phiên đăng nhập...</p>
         </div>
       </div>
     );
@@ -350,25 +350,25 @@ const AppContent: React.FC = () => {
 
   // Authenticated users see the main app
   return (
-    <div className="min-h-screen">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={goToDashboard}>
-            <div className="bg-white p-1 rounded-xl">
-              <img src="/assets/kths.png" alt="KTHS Logo" className="w-8 h-8 object-contain" />
+            <div className="bg-white p-0.5 rounded-lg">
+              <img src="/assets/kths.png" alt="KTHS Logo" className="w-6 h-6 object-contain" />
             </div>
-            <span className="text-xl font-black tracking-tight text-gray-900">SFT<span className="text-blue-600"> KTHS</span></span>
+            <span className="text-base font-bold tracking-tight text-gray-900">SFT<span className="text-blue-600"> KTHS</span></span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
-              Xin chào, <span className="font-semibold">{state.user?.username}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-600">
+              <span className="font-medium">{state.user?.username}</span>
               {state.user?.role === 'admin' && (
-                <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded">ADMIN</span>
+                <span className="ml-1.5 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded">ADMIN</span>
               )}
             </span>
             <button
               onClick={handleLogout}
-              className="text-sm text-red-600 hover:text-red-800 font-medium"
+              className="text-xs text-red-600 hover:text-red-800 font-medium"
             >
               Đăng xuất
             </button>
@@ -376,71 +376,73 @@ const AppContent: React.FC = () => {
         </div>
       </nav>
 
-      {state.view === 'dashboard' && (
-        <>
-          {loading ? (
-            <div className="max-w-7xl mx-auto px-4 py-12 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="animate-spin text-blue-600" size={48} />
-                <p className="text-gray-500">Đang tải danh sách tài liệu...</p>
+      <div className="flex-1">
+        {state.view === 'dashboard' && (
+          <>
+            {loading ? (
+              <div className="max-w-7xl mx-auto px-4 py-12 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="animate-spin text-blue-600" size={48} />
+                  <p className="text-gray-500">Đang tải danh sách tài liệu...</p>
+                </div>
               </div>
-            </div>
-          ) : error ? (
-            <div className="max-w-7xl mx-auto px-4 py-12">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800 font-medium">Lỗi: {error}</p>
-                <button
-                  onClick={loadDocuments}
-                  className="mt-2 text-red-600 hover:text-red-800 underline text-sm"
-                >
-                  Thử lại
-                </button>
+            ) : error ? (
+              <div className="max-w-7xl mx-auto px-4 py-12">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800 font-medium">Lỗi: {error}</p>
+                  <button
+                    onClick={loadDocuments}
+                    className="mt-2 text-red-600 hover:text-red-800 underline text-sm"
+                  >
+                    Thử lại
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <Dashboard 
-              documents={state.documents} 
-              onUploadClick={goToUpload} 
-              onViewSamples={goToReview} 
-              onDeleteDoc={deleteDoc} 
-              onReassignDoc={handleReassignDoc}
-              onRemoteFilesClick={goToRemoteFiles} 
-              onSettingsClick={goToSettings}
-              onUserManagementClick={goToUserManagement}
-              currentUser={state.user}
-            />
-          )}
-        </>
-      )}
-      {state.view === 'upload' && (
-        <UploadScreen onBack={goToDashboard} onComplete={onUploadComplete} />
-      )}
-      {state.view === 'review' && state.selectedDocId && (
-        <ReviewScreen 
-          document={state.documents.find(d => d.id === state.selectedDocId)!} 
-          qaPairs={state.qaPairs[state.selectedDocId] || []} 
-          onBack={goToDashboard} 
-          onUpdateQA={updateQA} 
-          onDeleteQA={deleteQA}
-          onGenerateMore={handleGenerateMore}
-        />
-      )}
-      {state.view === 'remote-files' && (
-        <RemoteFilesScreen 
-          onBack={goToDashboard}
-          onViewDocument={goToReview}
-        />
-      )}
-      {state.view === 'settings' && (
-        <SettingsScreen onBack={goToDashboard} />
-      )}
-      {state.view === 'user-management' && (
-        <UserManagementScreen onBack={goToDashboard} />
-      )}
+            ) : (
+              <Dashboard 
+                documents={state.documents} 
+                onUploadClick={goToUpload} 
+                onViewSamples={goToReview} 
+                onDeleteDoc={deleteDoc} 
+                onReassignDoc={handleReassignDoc}
+                onRemoteFilesClick={goToRemoteFiles} 
+                onSettingsClick={goToSettings}
+                onUserManagementClick={goToUserManagement}
+                currentUser={state.user}
+              />
+            )}
+          </>
+        )}
+        {state.view === 'upload' && (
+          <UploadScreen onBack={goToDashboard} onComplete={onUploadComplete} />
+        )}
+        {state.view === 'review' && state.selectedDocId && (
+          <ReviewScreen 
+            document={state.documents.find(d => d.id === state.selectedDocId)!} 
+            qaPairs={state.qaPairs[state.selectedDocId] || []} 
+            onBack={goToDashboard} 
+            onUpdateQA={updateQA} 
+            onDeleteQA={deleteQA}
+            onGenerateMore={handleGenerateMore}
+          />
+        )}
+        {state.view === 'remote-files' && (
+          <RemoteFilesScreen 
+            onBack={goToDashboard}
+            onViewDocument={goToReview}
+          />
+        )}
+        {state.view === 'settings' && (
+          <SettingsScreen onBack={goToDashboard} />
+        )}
+        {state.view === 'user-management' && (
+          <UserManagementScreen onBack={goToDashboard} />
+        )}
+      </div>
 
-      <footer className="py-12 border-t border-gray-200 bg-white">
+      <footer className="py-4 border-t border-gray-200 bg-white mt-auto">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-sm text-gray-400">© 2026 Hệ thống Quản lý Dữ liệu SFT Pro. Giải pháp tối ưu cho gán nhãn dữ liệu pháp luật.</p>
+          <p className="text-xs text-gray-400">© 2026 Hệ thống Quản lý Dữ liệu SFT Pro. Giải pháp tối ưu cho gán nhãn dữ liệu pháp luật.</p>
         </div>
       </footer>
     </div>

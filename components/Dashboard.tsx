@@ -130,51 +130,51 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bảng điều khiển tài liệu</h1>
-          <p className="text-gray-500">Quản lý và duyệt các bộ dữ liệu SFT pháp luật của bạn.</p>
+          <h1 className="text-xl font-bold text-gray-900">Bảng điều khiển tài liệu</h1>
+          <p className="text-sm text-gray-500 mt-1">Quản lý và duyệt các bộ dữ liệu SFT pháp luật của bạn.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={onUploadClick}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
           >
-            <Plus size={18} className="mr-2" />
+            <Plus size={16} className="mr-1.5" />
             Xử lý tài liệu mới
           </button>
           {onRemoteFilesClick && (
             <button
               onClick={onRemoteFilesClick}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              <FolderOpen size={18} className="mr-2" />
+              <FolderOpen size={16} className="mr-1.5" />
               Tài liệu từ xa
             </button>
           )}
           {isAdmin && onUserManagementClick && (
             <button
               onClick={onUserManagementClick}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              <Users size={18} className="mr-2" />
+              <Users size={16} className="mr-1.5" />
               Quản lý tài khoản
             </button>
           )}
           {isAdmin && onSettingsClick && (
             <button
               onClick={onSettingsClick}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              <Settings size={18} className="mr-2" />
+              <Settings size={16} className="mr-1.5" />
               Cài đặt
             </button>
           )}
         </div>
       </div>
 
-      {/* Filters & Search */}
+        {/* Filters & Search */}
       <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -251,7 +251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold mr-2">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold mr-2">
                         {doc.createdBy ? doc.createdBy.charAt(0).toUpperCase() : '?'}
                       </div>
                       <span className="text-sm text-gray-700 truncate" title={doc.createdBy || 'Không xác định'}>

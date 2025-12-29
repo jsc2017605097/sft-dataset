@@ -75,102 +75,102 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
-          <div className="flex items-center space-x-4 mb-2">
-            <button
-              onClick={onBack}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft size={20} />
-              <span className="font-medium">Quay lại</span>
-            </button>
-          </div>
-          <div className="flex items-center space-x-3 mt-4">
-            <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg">
-              <Settings className="text-blue-600" size={24} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Cài đặt System Prompt</h1>
-              <p className="text-gray-600 text-sm mt-1">
-                Tùy chỉnh cách Ollama tạo câu hỏi và câu trả lời từ tài liệu
-              </p>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={onBack}
+          className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Cài đặt System Prompt</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Tùy chỉnh cách Ollama tạo câu hỏi và câu trả lời từ tài liệu</p>
         </div>
+      </div>
 
+      <div className="space-y-6">
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start space-x-3">
-            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
 
         {/* Success Message */}
         {successMessage && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-start space-x-3">
-            <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+            <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={18} />
             <p className="text-green-800 text-sm">{successMessage}</p>
           </div>
         )}
 
         {/* Settings Form */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <h2 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">Chế độ Prompt</h2>
+          
           {/* Mode Selection */}
-          <div className="mb-8">
-            <label className="block text-gray-900 font-semibold text-lg mb-4">
-              Chế độ Prompt
+          <div className="space-y-3 mb-6">
+            <label className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              mode === 'default'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}>
+              <input
+                type="radio"
+                name="mode"
+                value="default"
+                checked={mode === 'default'}
+                onChange={(e) => setMode(e.target.value as 'default' | 'custom')}
+                className="sr-only"
+              />
+              <div className="flex items-start gap-3 flex-1">
+                <div className={`flex-shrink-0 p-2 rounded-lg ${
+                  mode === 'default' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <CheckCircle2 size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-semibold text-gray-900">Sử dụng prompt mặc định</span>
+                    <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded uppercase">Khuyên dùng</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Prompt đã được tối ưu và test kỹ với tài liệu pháp luật Việt Nam</p>
+                </div>
+              </div>
             </label>
-            <div className="space-y-3">
-              <label className="flex items-start space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
-                <input
-                  type="radio"
-                  name="mode"
-                  value="default"
-                  checked={mode === 'default'}
-                  onChange={(e) => setMode(e.target.value as 'default' | 'custom')}
-                  className="w-5 h-5 text-blue-600 mt-0.5"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <CheckCircle2 className="text-green-600" size={18} />
-                    <span className="font-medium text-gray-900">Sử dụng prompt mặc định</span>
-                    <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">Khuyên dùng</span>
-                  </div>
-                  <p className="text-sm text-gray-600 ml-6">
-                    Prompt đã được tối ưu và test kỹ với tài liệu pháp luật Việt Nam
-                  </p>
-                </div>
-              </label>
 
-              <label className="flex items-start space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
-                <input
-                  type="radio"
-                  name="mode"
-                  value="custom"
-                  checked={mode === 'custom'}
-                  onChange={(e) => setMode(e.target.value as 'default' | 'custom')}
-                  className="w-5 h-5 text-blue-600 mt-0.5"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <FileText className="text-blue-600" size={18} />
-                    <span className="font-medium text-gray-900">Tùy chỉnh prompt</span>
-                  </div>
-                  <p className="text-sm text-gray-600 ml-6">
-                    Chỉnh sửa prompt để phù hợp với nhu cầu cụ thể của bạn
-                  </p>
+            <label className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              mode === 'custom'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}>
+              <input
+                type="radio"
+                name="mode"
+                value="custom"
+                checked={mode === 'custom'}
+                onChange={(e) => setMode(e.target.value as 'default' | 'custom')}
+                className="sr-only"
+              />
+              <div className="flex items-start gap-3 flex-1">
+                <div className={`flex-shrink-0 p-2 rounded-lg ${
+                  mode === 'custom' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <FileText size={20} />
                 </div>
-              </label>
-            </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-gray-900 mb-1">Tùy chỉnh prompt</div>
+                  <p className="text-xs text-gray-500">Chỉnh sửa prompt để phù hợp với nhu cầu cụ thể của bạn</p>
+                </div>
+              </div>
+            </label>
           </div>
 
           {/* Prompt Textarea */}
-          <div className="mb-8">
-            <label className="block text-gray-900 font-semibold text-lg mb-4">
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wider">
               Nội dung System Prompt
             </label>
             <textarea
@@ -178,54 +178,53 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               onChange={(e) => mode === 'custom' && setCustomPrompt(e.target.value)}
               disabled={mode === 'default'}
               rows={14}
-              className={`w-full px-4 py-3 border-2 rounded-lg text-sm leading-relaxed transition-colors ${
+              className={`w-full px-4 py-3 border rounded-lg text-sm leading-relaxed transition-colors ${
                 mode === 'default'
                   ? 'bg-gray-50 text-gray-700 border-gray-200 cursor-not-allowed'
-                  : 'bg-white text-gray-900 border-gray-300 focus:border-blue-500'
-              } focus:outline-none focus:ring-2 focus:ring-blue-200`}
+                  : 'bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+              } focus:outline-none`}
               placeholder="Nhập system prompt của bạn..."
             />
-            <div className="flex items-start space-x-2 mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-              <Info className="text-blue-600 flex-shrink-0 mt-0.5" size={18} />
-              <p className="text-sm text-blue-800">
-                <strong>Lưu ý:</strong> Prompt này chỉ quy định vai trò và phong cách của AI. 
-                Format JSON và validation rules sẽ được tự động thêm vào bởi hệ thống.
+            <div className="flex items-start gap-2 mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <Info className="text-blue-600 flex-shrink-0 mt-0.5" size={16} />
+              <p className="text-xs text-blue-800">
+                <strong>Lưu ý:</strong> Prompt này chỉ quy định vai trò và phong cách của AI. Format JSON và validation rules sẽ được tự động thêm vào bởi hệ thống.
               </p>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-6 border-t-2 border-gray-100">
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
             <button
               onClick={handleApplyDefault}
               disabled={mode === 'default'}
-              className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 mode === 'default'
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-700 text-white hover:bg-gray-800 hover:shadow-md'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-700 text-white hover:bg-gray-800'
               }`}
             >
-              <FileText size={18} />
+              <FileText size={16} />
               <span>Áp dụng prompt mặc định</span>
             </button>
 
             <button
               onClick={handleSave}
               disabled={saving}
-              className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 saving
                   ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
               }`}
             >
               {saving ? (
                 <>
-                  <Settings className="animate-spin" size={18} />
+                  <Settings className="animate-spin" size={16} />
                   <span>Đang lưu...</span>
                 </>
               ) : (
                 <>
-                  <Save size={18} />
+                  <Save size={16} />
                   <span>Lưu cấu hình</span>
                 </>
               )}
@@ -234,32 +233,32 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         </div>
 
         {/* Info Section */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mt-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-lg">
-              <Info className="text-white" size={18} />
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center justify-center w-7 h-7 bg-blue-600 rounded-lg">
+              <Info className="text-white" size={16} />
             </div>
-            <h3 className="font-bold text-blue-900 text-lg">Hướng dẫn sử dụng</h3>
+            <h3 className="font-semibold text-blue-900 text-base">Hướng dẫn sử dụng</h3>
           </div>
-          <ul className="text-sm text-blue-900 space-y-2.5">
-            <li className="flex items-start space-x-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={16} />
+          <ul className="text-sm text-blue-900 space-y-2">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
               <span>Prompt mặc định đã được tối ưu cho tài liệu pháp luật tiếng Việt</span>
             </li>
-            <li className="flex items-start space-x-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={16} />
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
               <span>Nếu muốn tùy chỉnh, hãy chọn "Tùy chỉnh prompt" và nhập nội dung của bạn</span>
             </li>
-            <li className="flex items-start space-x-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={16} />
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
               <span>Bạn có thể bấm "Áp dụng prompt mặc định" để sử dụng nội dung mặc định làm base chỉnh sửa</span>
             </li>
-            <li className="flex items-start space-x-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={16} />
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
               <span>Sau khi lưu, cache sẽ tự động cập nhật và áp dụng ngay không cần restart server</span>
             </li>
-            <li className="flex items-start space-x-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={16} />
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
               <span>Format JSON và validation rules sẽ được hệ thống tự động thêm vào</span>
             </li>
           </ul>

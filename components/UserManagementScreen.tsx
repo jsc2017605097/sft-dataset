@@ -209,37 +209,33 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onBa
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
           >
-            <ArrowLeft size={20} />
-            <span>Quay lại</span>
+            <ArrowLeft size={18} />
           </button>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                <Users className="text-white" size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Quản lý tài khoản</h1>
-                <p className="text-sm text-gray-600">Tổng {users.length} tài khoản</p>
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Users className="text-white" size={16} />
             </div>
-            <button
-              onClick={handleCreateClick}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <UserPlus size={20} />
-              Tạo tài khoản mới
-            </button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Quản lý tài khoản</h1>
+              <p className="text-xs text-gray-500 mt-0.5">Tổng {users.length} tài khoản</p>
+            </div>
           </div>
         </div>
+        <button
+          onClick={handleCreateClick}
+          className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
+          <UserPlus size={16} />
+          Tạo tài khoản mới
+        </button>
+      </div>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -347,9 +343,8 @@ export const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onBa
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Modal (Create/Edit) */}
+        {/* Modal (Create/Edit) */}
       {modalMode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
