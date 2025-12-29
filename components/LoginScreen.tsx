@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { LogIn } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (username: string, password: string) => Promise<void>;
@@ -36,11 +35,11 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
       <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-4">
-            <LogIn className="w-8 h-8 text-white" />
+          <div className="mb-4">
+            <img src="/assets/kths.png" alt="KTHS Logo" className="w-24 h-24 object-contain mx-auto" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Đăng nhập</h1>
-          <p className="text-gray-600 mt-2">SFT Dataset Management System</p>
+          <p className="text-gray-600 mt-2">SFT Dataset - Trung tâm huấn luyện AI KTHS</p>
         </div>
 
         {/* Error Message */}
