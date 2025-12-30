@@ -9,6 +9,7 @@ import { SettingsScreen } from './components/SettingsScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { RegisterScreen } from './components/RegisterScreen';
 import { UserManagementScreen } from './components/UserManagementScreen';
+import { StaffMonitoringScreen } from './components/StaffMonitoringScreen';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import { Layout, Loader2 } from 'lucide-react';
 import { 
@@ -179,6 +180,7 @@ const AppContent: React.FC = () => {
   const goToRemoteFiles = () => setState(prev => ({ ...prev, view: 'remote-files' }));
   const goToSettings = () => setState(prev => ({ ...prev, view: 'settings' }));
   const goToUserManagement = () => setState(prev => ({ ...prev, view: 'user-management' }));
+  const goToStaffMonitoring = () => setState(prev => ({ ...prev, view: 'staff-monitoring' }));
   const goToReview = async (docId: string) => {
     setState(prev => ({ ...prev, view: 'review', selectedDocId: docId }));
     // Load Q&A pairs khi vào review screen
@@ -315,6 +317,14 @@ const AppContent: React.FC = () => {
     // Reload documents từ API sau khi upload thành công
     // (Backend đã tự động lưu vào database)
     await loadDocuments();
+    
+    // Hiển thị thông báo thành công
+    showToast(
+      'success', 
+      `✅ Upload thành công! File "${name}" đã được xử lý với ${generatedQAs.length} cặp Q&A.`,
+      5000
+    );
+    
     setState(prev => ({ ...prev, view: 'dashboard' }));
   };
 
@@ -408,6 +418,7 @@ const AppContent: React.FC = () => {
                 onRemoteFilesClick={goToRemoteFiles} 
                 onSettingsClick={goToSettings}
                 onUserManagementClick={goToUserManagement}
+                onStaffMonitoringClick={goToStaffMonitoring}
                 currentUser={state.user}
               />
             )}
@@ -437,6 +448,9 @@ const AppContent: React.FC = () => {
         )}
         {state.view === 'user-management' && (
           <UserManagementScreen onBack={goToDashboard} />
+        )}
+        {state.view === 'staff-monitoring' && (
+          <StaffMonitoringScreen onBack={goToDashboard} />
         )}
       </div>
 

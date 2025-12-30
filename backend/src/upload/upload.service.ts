@@ -364,5 +364,221 @@ export class UploadService {
 
     return fields;
   }
+
+  /**
+   * Parse text template file và extract Q&A pairs
+   * Format: "Câu hỏi X: ..." followed by "Trả lời: ..."
+   * 
+   * @param text - Extracted text từ Tika
+   * @returns Array of GeneratedQA
+   */
+  private parseTextTemplate(text: string): Array<{ question: string; answer: string }> {
+    try {
+      // Debug: Log first 1000 chars of input text
+      console.log('[ParseTextTemplate] Input text preview (first 1000 chars):');
+      console.log(text.substring(0, 1000));
+      console.log('[ParseTextTemplate] Total text length:', text.length);
+
+      // Remove empty lines nhưng giữ lại thứ tự
+      const lines: string[] = [];
+      for (const line of text.split('\n')) {
+        const stripped = line.trim();
+        if (stripped) {
+          lines.push(stripped);
+        }
+      }
+
+      console.log('[ParseTextTemplate] Total non-empty lines:', lines.length);
+      console.log('[ParseTextTemplate] First 10 lines:');
+      lines.slice(0, 10).forEach((line, idx) => {
+        console.log(`  Line ${idx + 1}: ${line.substring(0, 100)}${line.length > 100 ? '...' : ''}`);
+      });
+
+      const qaPairs: Array<{ question: string; answer: string }> = [];
+      let currentQuestion = '';
+      let currentAnswer = '';
+      let currentMode: 'question' | 'answer' | null = null;
+
+      for (const line of lines) {
+        // Pattern cho câu hỏi: "Câu hỏi X:" hoặc "Câu hỏi X: ..."
+        const questionMatch = line.match(/^Câu hỏi\s+\d+\s*:\s*(.*)$/i);
+        
+        // Pattern cho câu trả lời: "Trả lời:" hoặc "Trả lời: ..."
+        const answerMatch = line.match(/^Trả lời\s*:\s*(.*)$/i);
+
+        // Debug: Log matches
+        if (questionMatch) {
+          console.log(`[ParseTextTemplate] ✓ Found question: ${line.substring(0, 80)}...`);
+        }
+        if (answerMatch) {
+          console.log(`[ParseTextTemplate] ✓ Found answer: ${line.substring(0, 80)}...`);
+        }
+
+        if (questionMatch) {
+          // Gặp câu hỏi mới -> Lưu cặp cũ nếu có
+          if (currentQuestion && currentAnswer) {
+            qaPairs.push({
+              question: currentQuestion.trim(),
+              answer: currentAnswer.trim(),
+            });
+          }
+
+          // Bắt đầu câu hỏi mới
+          const content = questionMatch[1].trim();
+          currentQuestion = content || '';
+          currentAnswer = '';
+          currentMode = 'question';
+
+        } else if (answerMatch) {
+          // Gặp câu trả lời
+          const content = answerMatch[1].trim();
+          currentAnswer = content || '';
+          currentMode = 'answer';
+
+        } else {
+          // Dòng không có prefix -> phần tiếp theo của câu hỏi hoặc câu trả lời
+          if (currentMode === 'question') {
+            // Tiếp tục câu hỏi
+            if (currentQuestion) {
+              currentQuestion += ' ' + line;
+            } else {
+              currentQuestion = line;
+            }
+          } else if (currentMode === 'answer') {
+            // Tiếp tục câu trả lời
+            if (currentAnswer) {
+              currentAnswer += ' ' + line;
+            } else {
+              currentAnswer = line;
+            }
+          }
+          // Nếu currentMode === null: bỏ qua (tiêu đề hoặc nội dung không liên quan)
+        }
+      }
+
+      // Lưu cặp cuối cùng nếu có
+      if (currentQuestion && currentAnswer) {
+        qaPairs.push({
+          question: currentQuestion.trim(),
+          answer: currentAnswer.trim(),
+        });
+      }
+
+      console.log(`[ParseTextTemplate] ✅ Parsed ${qaPairs.length} Q&A pairs`);
+
+      // Validate: phải có ít nhất 1 cặp Q&A
+      if (qaPairs.length === 0) {
+        throw new BadRequestException(
+          'Không tìm thấy cặp câu hỏi - trả lời nào trong file.\n' +
+          'Format mong đợi:\n' +
+          'Câu hỏi 1: <nội dung câu hỏi>\n' +
+          'Trả lời: <nội dung trả lời>\n\n' +
+          'Câu hỏi 2: <nội dung câu hỏi>\n' +
+          'Trả lời: <nội dung trả lời>\n\n' +
+          '💡 Tip: Kiểm tra log để xem text đã được extract như thế nào.'
+        );
+      }
+
+      return qaPairs;
+
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Lỗi khi parse text template: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Process text template file: Extract text với Tika, parse Q&A pairs
+   * @param file - File từ multer (TXT, PDF, DOC, DOCX)
+   * @param userId - ID của user upload file
+   * @param username - Username của user upload file
+   * @returns ProcessFileResponseDto với fileName, fileSize, qaPairs
+   */
+  async processTextTemplateFile(
+    file: Express.Multer.File | undefined,
+    userId?: string,
+    username?: string,
+  ): Promise<ProcessFileResponseDto> {
+    // Validate file
+    if (!file) {
+      throw new BadRequestException('File không được cung cấp');
+    }
+
+    // Validate file type (cho phép nhiều loại file văn bản)
+    const allowedMimeTypes = [
+      'text/plain', // .txt
+      'application/pdf',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    ];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'File không hợp lệ. Chỉ chấp nhận TXT, PDF, DOC, DOCX.'
+      );
+    }
+
+    // Validate file size (50MB max)
+    const maxSizeBytes = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSizeBytes) {
+      throw new BadRequestException('File quá lớn. Kích thước tối đa: 50MB.');
+    }
+
+    try {
+      // Extract text từ file bằng Tika
+      const extractedText = await this.tikaService.extractText(file.buffer);
+
+      if (!extractedText || extractedText.trim().length === 0) {
+        throw new BadRequestException('Không thể trích xuất text từ file. File có thể bị lỗi hoặc rỗng.');
+      }
+
+      // Parse Q&A pairs từ text
+      const qaPairs = this.parseTextTemplate(extractedText);
+
+      // Format file name và size (match với FE format)
+      const safeFileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+      const fileSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+      // Tạo Document object
+      const docId = `doc-${Date.now()}`;
+      const document: Document = {
+        id: docId,
+        name: safeFileName,
+        size: fileSize,
+        uploadDate: new Date().toLocaleDateString('vi-VN'),
+        totalSamples: qaPairs.length,
+        reviewedSamples: 0,
+        status: 'Ready',
+      };
+
+      // Lưu Document + QAPairs (có extractedText từ Tika)
+      await this.documentsService.createDocumentWithQAPairs(
+        document,
+        qaPairs,
+        extractedText, // Có extracted text
+        userId,
+        username,
+        0, // Không có chunk tracking
+        0,
+      );
+
+      return {
+        fileName: safeFileName,
+        fileSize: fileSize,
+        qaPairs: qaPairs,
+      };
+
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Lỗi khi xử lý text template: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
 }
 

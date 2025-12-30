@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Plus, FileText, ExternalLink, Download, Trash2, FolderOpen, Settings, Users, UserCog, X, Loader2 } from 'lucide-react';
+import { Search, Plus, FileText, ExternalLink, Download, Trash2, FolderOpen, Settings, Users, UserCog, X, Loader2, BarChart3 } from 'lucide-react';
 import { Document, User as UserType } from '../types';
 import { getAllUsers, reassignDocument } from '../services/apiService';
 import { useNotification } from '../contexts/NotificationContext';
@@ -13,6 +13,7 @@ interface DashboardProps {
   onRemoteFilesClick?: () => void;
   onSettingsClick?: () => void;
   onUserManagementClick?: () => void;
+  onStaffMonitoringClick?: () => void;
   onReassignDoc?: (docId: string, userId: string) => Promise<void>;
   currentUser?: UserType | null;
 }
@@ -25,6 +26,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onRemoteFilesClick, 
   onSettingsClick,
   onUserManagementClick,
+  onStaffMonitoringClick,
   onReassignDoc,
   currentUser,
 }) => {
@@ -160,6 +162,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
             >
               <Users size={16} className="mr-1.5" />
               Quản lý tài khoản
+            </button>
+          )}
+          {isAdmin && onStaffMonitoringClick && (
+            <button
+              onClick={onStaffMonitoringClick}
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              <BarChart3 size={16} className="mr-1.5" />
+              Giám sát cán bộ
             </button>
           )}
           {isAdmin && onSettingsClick && (

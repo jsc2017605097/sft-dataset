@@ -3,7 +3,7 @@
  * Thay thế việc gọi trực tiếp Tika/Ollama từ FE
  */
 
-import { Document, QAPair, User, AuthResponse } from '../types';
+import { Document, QAPair, User, AuthResponse, StaffOverviewResponse } from '../types';
 
 export interface GeneratedQA {
   question: string;
@@ -271,6 +271,40 @@ export const processTemplateFile = async (
 };
 
 /**
+ * Process text template file: Upload file văn bản (TXT, PDF, DOC, DOCX) và parse Q&A pairs
+ * Format: "Câu hỏi X: ..." followed by "Trả lời: ..."
+ * @param file - Text template file object từ browser (TXT, PDF, DOC, DOCX)
+ * @returns ProcessFileResponse với fileName, fileSize, qaPairs
+ */
+export const processTextTemplateFile = async (
+  file: File,
+): Promise<ProcessFileResponse> => {
+  try {
+    // Tạo FormData để gửi file
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Gọi Backend API với auth header
+    const response = await fetch(`${API_BASE_URL}/api/upload/process-text-template`, {
+      method: 'POST',
+      headers: getAuthHeadersForFormData(),
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: ProcessFileResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi khi gọi Backend API:', error);
+    throw error;
+  }
+};
+
+/**
  * Lấy danh sách Documents (cho Dashboard)
  */
 export const getDocuments = async (): Promise<Document[]> => {
@@ -508,11 +542,23 @@ export interface SettingsResponse {
   customPrompt: string | null;
   defaultPromptTemplate: string;
   updatedAt: string;
+  warningDaysThreshold: number;
+  warningIncompleteDocsThreshold: number;
+  enableZeroProgressWarning: boolean;
+  enableOverdueWarning: boolean;
+  enableTooManyIncompleteWarning: boolean;
+  enableNoDocumentWarning: boolean;
 }
 
 export interface UpdateSettingsRequest {
   useDefaultPrompt: boolean;
   customPrompt?: string | null;
+  warningDaysThreshold?: number;
+  warningIncompleteDocsThreshold?: number;
+  enableZeroProgressWarning?: boolean;
+  enableOverdueWarning?: boolean;
+  enableTooManyIncompleteWarning?: boolean;
+  enableNoDocumentWarning?: boolean;
 }
 
 /**
@@ -730,6 +776,31 @@ export const reassignDocument = async (docId: string, userId: string): Promise<D
     return await response.json();
   } catch (error) {
     console.error('Lỗi khi gán lại document:', error);
+    throw error;
+  }
+};
+
+// ==================== Analytics APIs ====================
+
+/**
+ * Get staff overview statistics (Admin only)
+ * @returns StaffOverviewResponse với stats và summary
+ */
+export const getStaffOverview = async (): Promise<StaffOverviewResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/analytics/staff-overview`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Lỗi khi lấy staff overview:', error);
     throw error;
   }
 };

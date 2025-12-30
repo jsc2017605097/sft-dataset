@@ -14,9 +14,41 @@ export class TikaService {
   }
 
   /**
+   * Clean text: Loại bỏ Word metadata và ký tự đặc biệt không cần thiết
+   * @param text - Raw text từ Tika
+   * @returns Cleaned text
+   */
+  private cleanExtractedText(text: string): string {
+    let cleaned = text;
+
+    // 1. Remove Word bookmarks: [bookmark: _Hlk155168448]
+    cleaned = cleaned.replace(/\[bookmark:\s*[^\]]+\]/gi, '');
+
+    // 2. Remove Word hyperlinks metadata: [hyperlink: ...]
+    cleaned = cleaned.replace(/\[hyperlink:\s*[^\]]+\]/gi, '');
+
+    // 3. Remove Word comments: [comment: ...]
+    cleaned = cleaned.replace(/\[comment:\s*[^\]]+\]/gi, '');
+
+    // 4. Remove excessive newlines (3+ newlines → 2 newlines)
+    // Làm TRƯỚC khi xử lý spaces để giữ structure
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+    // 5. Trim each line và remove multiple spaces TRONG mỗi line
+    // KHÔNG replace \n thành space
+    cleaned = cleaned
+      .split('\n')
+      .map(line => line.trim().replace(/\s+/g, ' ')) // Replace spaces trong từng line
+      .join('\n');
+
+    // 6. Final trim
+    return cleaned.trim();
+  }
+
+  /**
    * Extract text từ file sử dụng Apache Tika
    * @param fileBuffer - File buffer từ multer
-   * @returns Plain text đã được extract từ file
+   * @returns Plain text đã được extract và clean từ file
    * @throws HttpException nếu Tika server không phản hồi hoặc file không hợp lệ
    */
   async extractText(fileBuffer: Buffer): Promise<string> {
@@ -53,7 +85,12 @@ export class TikaService {
         );
       }
 
-      return text.trim();
+      // Clean text: Remove Word metadata và normalize whitespace
+      const cleanedText = this.cleanExtractedText(text);
+
+      console.log('[Tika] Text extracted and cleaned. Length:', cleanedText.length);
+
+      return cleanedText;
     } catch (error) {
       // Log error nhưng không expose internal details
       console.error('Lỗi khi gọi Tika API:', error);

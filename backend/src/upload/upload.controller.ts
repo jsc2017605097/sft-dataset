@@ -75,5 +75,30 @@ export class UploadController {
   ): Promise<ProcessFileResponseDto> {
     return this.uploadService.processTemplateFile(file, user.id, user.username);
   }
+
+  /**
+   * POST /api/upload/process-text-template
+   * Upload text template file (TXT, PDF, DOC, DOCX) và parse Q&A pairs
+   * Format: "Câu hỏi X: ..." followed by "Trả lời: ..."
+   * User upload file sẽ là owner của document đó
+   * 
+   * Request:
+   * - multipart/form-data
+   * - file: File (TXT, PDF, DOC, DOCX)
+   * 
+   * Response:
+   * - fileName: string
+   * - fileSize: string
+   * - qaPairs: GeneratedQA[]
+   */
+  @Post('process-text-template')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  async processTextTemplate(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @GetUser() user: UserEntity,
+  ): Promise<ProcessFileResponseDto> {
+    return this.uploadService.processTextTemplateFile(file, user.id, user.username);
+  }
 }
 

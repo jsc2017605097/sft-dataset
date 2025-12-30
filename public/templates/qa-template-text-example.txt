@@ -1,0 +1,19 @@
+Tài liệu mẫu - Hướng dẫn sử dụng Text Template
+
+File này là ví dụ về format text template cho hệ thống SFT Dataset.
+
+Câu hỏi 1: Làm thế nào để tạo Q&A pairs từ file văn bản?
+Trả lời: Bạn cần tạo file văn bản (TXT, PDF, DOC, DOCX) với format: "Câu hỏi X:" sau đó là "Trả lời:". Hệ thống sẽ tự động tách các cặp câu hỏi và câu trả lời dựa trên từ khóa này.
+
+Câu hỏi 2: Tôi có thể thêm nội dung khác vào file không?
+Trả lời: Có, file có thể chứa tiêu đề, giới thiệu hoặc bất kỳ nội dung nào khác. Hệ thống chỉ tách các phần có prefix "Câu hỏi" và "Trả lời", phần còn lại sẽ bị bỏ qua.
+
+Câu hỏi 3: Câu hỏi hoặc câu trả lời có thể dài nhiều dòng không?
+Trả lời: Có thể. Nếu câu hỏi hoặc câu trả lời dài hơn một dòng, chỉ cần viết tiếp ở các dòng sau. Hệ thống sẽ tự động ghép các dòng lại với nhau cho đến khi gặp prefix tiếp theo ("Câu hỏi X:" hoặc "Trả lời:").
+
+Câu hỏi 4: Format này có hỗ trợ file PDF và DOCX không?
+Trả lời: Có, hệ thống sử dụng Apache Tika để extract text từ nhiều loại file: TXT, PDF, DOC, DOCX. Sau khi extract, text sẽ được parse theo quy tắc "Câu hỏi X:" và "Trả lời:".
+
+Câu hỏi 5: Tôi có cần đánh số thứ tự cho câu hỏi không?
+Trả lời: Có, format yêu cầu phải có số thứ tự sau từ khóa "Câu hỏi", ví dụ: "Câu hỏi 1:", "Câu hỏi 2:", v.v. Đây là cách hệ thống phân biệt giữa các câu hỏi khác nhau.
+

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Upload, X, FileText, ChevronDown, Check, Loader2, ArrowLeft, Download, Sparkles, FileSpreadsheet } from 'lucide-react';
 import { FileStatus } from '../types';
-import { processFile, processTemplateFile } from '../services/apiService';
+import { processFile, processTemplateFile, processTextTemplateFile } from '../services/apiService';
 import { useNotification } from '../contexts/NotificationContext';
 
 interface UploadScreenProps {
@@ -23,7 +23,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
   const { showToast } = useNotification();
   const [files, setFiles] = useState<UploadingFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processMode, setProcessMode] = useState<'ai' | 'template'>('ai');
+  const [processMode, setProcessMode] = useState<'ai' | 'csv-template' | 'text-template'>('text-template');
   const [settings, setSettings] = useState({
     autoGenerate: true,
     sentencesPerChunk: 5,
@@ -32,8 +32,12 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files).map((f: File) => {
-        if (processMode === 'template' && !f.name.toLowerCase().endsWith('.csv')) {
+        if (processMode === 'csv-template' && !f.name.toLowerCase().endsWith('.csv')) {
           showToast('error', `File "${f.name}" không phải CSV. Vui lòng chọn file CSV.`);
+          return null;
+        }
+        if (processMode === 'text-template' && !f.name.toLowerCase().match(/\.(txt|pdf|doc|docx)$/i)) {
+          showToast('error', `File "${f.name}" không hợp lệ. Vui lòng chọn file TXT, PDF, DOC hoặc DOCX.`);
           return null;
         }
         if (processMode === 'ai' && !f.name.toLowerCase().match(/\.(pdf|docx)$/i)) {
@@ -81,8 +85,10 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
         setFiles(prev => prev.map(f => f.id === fileItem.id ? { ...f, progress: 50 } : f));
         
         let result;
-        if (processMode === 'template') {
+        if (processMode === 'csv-template') {
           result = await processTemplateFile(fileItem.file);
+        } else if (processMode === 'text-template') {
+          result = await processTextTemplateFile(fileItem.file);
         } else {
           result = await processFile(
             fileItem.file,
@@ -119,7 +125,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
         </button>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Xử lý tài liệu mới</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Tải lên tài liệu PDF/DOCX để tự động tạo Q&A hoặc upload CSV template đã điền sẵn.</p>
+          <p className="text-sm text-gray-500 mt-0.5">Tải lên tài liệu PDF/DOCX để tự động tạo Q&A, hoặc upload template đã điền sẵn (CSV hoặc văn bản).</p>
         </div>
       </div>
 
@@ -127,7 +133,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
         {/* Process Mode Selection */}
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <h2 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">Chế độ xử lý</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <label className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${
               processMode === 'ai'
                 ? 'border-blue-500 bg-blue-50'
@@ -158,36 +164,65 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
             </label>
 
             <label className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${
-              processMode === 'template'
+              processMode === 'csv-template'
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 bg-white hover:border-gray-300'
             }`}>
               <input 
                 type="radio" 
                 name="processMode"
-                value="template"
-                checked={processMode === 'template'}
+                value="csv-template"
+                checked={processMode === 'csv-template'}
                 onChange={() => {
-                  setProcessMode('template');
+                  setProcessMode('csv-template');
                   setFiles([]);
                 }}
                 className="sr-only"
               />
               <div className="flex items-start gap-3 flex-1">
                 <div className={`flex-shrink-0 p-2 rounded-lg ${
-                  processMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                  processMode === 'csv-template' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
                 }`}>
                   <FileSpreadsheet size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-gray-900">Xử lý theo template</div>
+                  <div className="text-sm font-semibold text-gray-900">Template CSV</div>
                   <p className="text-xs text-gray-500 mt-1">Upload CSV template đã điền sẵn câu hỏi và câu trả lời</p>
+                </div>
+              </div>
+            </label>
+
+            <label className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              processMode === 'text-template'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}>
+              <input 
+                type="radio" 
+                name="processMode"
+                value="text-template"
+                checked={processMode === 'text-template'}
+                onChange={() => {
+                  setProcessMode('text-template');
+                  setFiles([]);
+                }}
+                className="sr-only"
+              />
+              <div className="flex items-start gap-3 flex-1">
+                <div className={`flex-shrink-0 p-2 rounded-lg ${
+                  processMode === 'text-template' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <FileText size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-gray-900">Template văn bản</div>
+                  <p className="text-xs text-gray-500 mt-1">Upload TXT/PDF/DOC/DOCX với format "Câu hỏi X:" và "Trả lời:"</p>
                 </div>
               </div>
             </label>
           </div>
 
-          {processMode === 'template' && (
+          {processMode === 'csv-template' && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <button
                 onClick={handleDownloadTemplate}
@@ -199,6 +234,24 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
               <p className="text-xs text-gray-500 mt-2">
                 💡 Tip: Tải template mẫu, mở bằng Excel, điền câu hỏi và câu trả lời, sau đó Save as CSV (UTF-8) để tránh lỗi format.
               </p>
+            </div>
+          )}
+
+          {processMode === 'text-template' && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">📝 Format yêu cầu:</h3>
+                <div className="text-xs text-blue-800 space-y-1 font-mono bg-white p-3 rounded border border-blue-100">
+                  <div>Câu hỏi 1: <span className="text-gray-600">&lt;nội dung câu hỏi&gt;</span></div>
+                  <div>Trả lời: <span className="text-gray-600">&lt;nội dung trả lời&gt;</span></div>
+                  <div className="pt-1 opacity-50">...</div>
+                  <div>Câu hỏi 2: <span className="text-gray-600">&lt;nội dung câu hỏi&gt;</span></div>
+                  <div>Trả lời: <span className="text-gray-600">&lt;nội dung trả lời&gt;</span></div>
+                </div>
+                <p className="text-xs text-blue-700 mt-2">
+                  💡 File có thể chứa tiêu đề hoặc nội dung khác, hệ thống sẽ tự động tách các cặp Q&A dựa trên từ khóa "Câu hỏi" và "Trả lời".
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -215,14 +268,20 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onBack, onComplete }
             </div>
             <p className="text-base font-semibold text-gray-900 mb-1">Nhấp hoặc kéo tệp vào đây để tải lên</p>
             <p className="text-sm text-gray-500">
-              {processMode === 'ai' ? 'PDF, DOCX tối đa 50MB' : 'CSV template tối đa 10MB'}
+              {processMode === 'ai' && 'PDF, DOCX tối đa 50MB'}
+              {processMode === 'csv-template' && 'CSV template tối đa 10MB'}
+              {processMode === 'text-template' && 'TXT, PDF, DOC, DOCX tối đa 50MB'}
             </p>
             <input 
               id="file-input"
               type="file" 
               className="hidden" 
               multiple 
-              accept={processMode === 'ai' ? '.pdf,.docx' : '.csv'}
+              accept={
+                processMode === 'ai' ? '.pdf,.docx' : 
+                processMode === 'csv-template' ? '.csv' : 
+                '.txt,.pdf,.doc,.docx'
+              }
               onChange={handleFileChange}
             />
           </div>

@@ -11,6 +11,7 @@ import { RemoteFilesModule } from './remote-files/remote-files.module';
 import { SettingsModule } from './settings/settings.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 /**
  * App Module - Root module của NestJS application
@@ -33,6 +34,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     DocumentsModule,
     RemoteFilesModule,
     SettingsModule,
+    AnalyticsModule,
     OllamaModule,
   ],
   controllers: [AppController],

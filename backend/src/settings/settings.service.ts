@@ -40,6 +40,12 @@ QUAN TRỌNG - BẮT BUỘC:
       customPrompt: settings.customPrompt,
       defaultPromptTemplate: this.DEFAULT_PROMPT_TEMPLATE,
       updatedAt: settings.updatedAt,
+      warningDaysThreshold: settings.warningDaysThreshold,
+      warningIncompleteDocsThreshold: settings.warningIncompleteDocsThreshold,
+      enableZeroProgressWarning: settings.enableZeroProgressWarning,
+      enableOverdueWarning: settings.enableOverdueWarning,
+      enableTooManyIncompleteWarning: settings.enableTooManyIncompleteWarning,
+      enableNoDocumentWarning: settings.enableNoDocumentWarning,
     };
   }
 
@@ -54,11 +60,37 @@ QUAN TRỌNG - BẮT BUỘC:
         useDefaultPrompt: dto.useDefaultPrompt,
         customPrompt: dto.customPrompt,
         updatedAt: new Date(),
+        warningDaysThreshold: dto.warningDaysThreshold ?? 7,
+        warningIncompleteDocsThreshold: dto.warningIncompleteDocsThreshold ?? 5,
+        enableZeroProgressWarning: dto.enableZeroProgressWarning ?? true,
+        enableOverdueWarning: dto.enableOverdueWarning ?? true,
+        enableTooManyIncompleteWarning: dto.enableTooManyIncompleteWarning ?? true,
+        enableNoDocumentWarning: dto.enableNoDocumentWarning ?? true,
       });
     } else {
       settings.useDefaultPrompt = dto.useDefaultPrompt;
       settings.customPrompt = dto.customPrompt;
       settings.updatedAt = new Date();
+      
+      // Update warning config if provided
+      if (dto.warningDaysThreshold !== undefined) {
+        settings.warningDaysThreshold = dto.warningDaysThreshold;
+      }
+      if (dto.warningIncompleteDocsThreshold !== undefined) {
+        settings.warningIncompleteDocsThreshold = dto.warningIncompleteDocsThreshold;
+      }
+      if (dto.enableZeroProgressWarning !== undefined) {
+        settings.enableZeroProgressWarning = dto.enableZeroProgressWarning;
+      }
+      if (dto.enableOverdueWarning !== undefined) {
+        settings.enableOverdueWarning = dto.enableOverdueWarning;
+      }
+      if (dto.enableTooManyIncompleteWarning !== undefined) {
+        settings.enableTooManyIncompleteWarning = dto.enableTooManyIncompleteWarning;
+      }
+      if (dto.enableNoDocumentWarning !== undefined) {
+        settings.enableNoDocumentWarning = dto.enableNoDocumentWarning;
+      }
     }
 
     await this.settingsRepository.save(settings);
@@ -67,6 +99,12 @@ QUAN TRỌNG - BẮT BUỘC:
       useDefaultPrompt: settings.useDefaultPrompt,
       customPrompt: settings.customPrompt,
       defaultPromptTemplate: this.DEFAULT_PROMPT_TEMPLATE,
+      warningDaysThreshold: settings.warningDaysThreshold,
+      warningIncompleteDocsThreshold: settings.warningIncompleteDocsThreshold,
+      enableZeroProgressWarning: settings.enableZeroProgressWarning,
+      enableOverdueWarning: settings.enableOverdueWarning,
+      enableTooManyIncompleteWarning: settings.enableTooManyIncompleteWarning,
+      enableNoDocumentWarning: settings.enableNoDocumentWarning,
       updatedAt: settings.updatedAt,
     };
   }

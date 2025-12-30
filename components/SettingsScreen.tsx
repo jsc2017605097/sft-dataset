@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, CheckCircle2, AlertCircle, Save, FileText, Info } from 'lucide-react';
+import { ArrowLeft, Settings, CheckCircle2, AlertCircle, Save, FileText, Info, Bell, MessageSquare } from 'lucide-react';
 import { getSettings, updateSettings, SettingsResponse } from '../services/apiService';
 
 interface SettingsScreenProps {
   onBack: () => void;
 }
 
+type TabType = 'prompt' | 'warning';
+
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
+  const [activeTab, setActiveTab] = useState<TabType>('prompt');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,6 +18,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const [mode, setMode] = useState<'default' | 'custom'>('default');
   const [customPrompt, setCustomPrompt] = useState('');
   const [defaultPrompt, setDefaultPrompt] = useState('');
+  
+  // Warning configuration
+  const [warningDaysThreshold, setWarningDaysThreshold] = useState(7);
+  const [warningIncompleteDocsThreshold, setWarningIncompleteDocsThreshold] = useState(5);
+  const [enableZeroProgressWarning, setEnableZeroProgressWarning] = useState(true);
+  const [enableOverdueWarning, setEnableOverdueWarning] = useState(true);
+  const [enableTooManyIncompleteWarning, setEnableTooManyIncompleteWarning] = useState(true);
+  const [enableNoDocumentWarning, setEnableNoDocumentWarning] = useState(true);
 
   // Load settings từ API
   useEffect(() => {
@@ -30,6 +41,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       setMode(data.useDefaultPrompt ? 'default' : 'custom');
       setCustomPrompt(data.customPrompt || '');
       setDefaultPrompt(data.defaultPromptTemplate);
+      
+      // Load warning configuration
+      setWarningDaysThreshold(data.warningDaysThreshold || 7);
+      setWarningIncompleteDocsThreshold(data.warningIncompleteDocsThreshold || 5);
+      setEnableZeroProgressWarning(data.enableZeroProgressWarning ?? true);
+      setEnableOverdueWarning(data.enableOverdueWarning ?? true);
+      setEnableTooManyIncompleteWarning(data.enableTooManyIncompleteWarning ?? true);
+      setEnableNoDocumentWarning(data.enableNoDocumentWarning ?? true);
     } catch (err) {
       setError(`Không thể tải cấu hình: ${err instanceof Error ? err.message : 'Lỗi không xác định'}`);
     } finally {
@@ -52,6 +71,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       await updateSettings({
         useDefaultPrompt: mode === 'default',
         customPrompt: mode === 'custom' ? customPrompt : null,
+        warningDaysThreshold,
+        warningIncompleteDocsThreshold,
+        enableZeroProgressWarning,
+        enableOverdueWarning,
+        enableTooManyIncompleteWarning,
+        enableNoDocumentWarning,
       });
 
       setSuccessMessage('Lưu cấu hình thành công! Cache đã được cập nhật.');
@@ -76,6 +101,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={onBack}
@@ -84,8 +110,43 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Cài đặt System Prompt</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Tùy chỉnh cách Ollama tạo câu hỏi và câu trả lời từ tài liệu</p>
+          <h1 className="text-xl font-bold text-gray-900">Cài đặt hệ thống</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Quản lý cấu hình prompt AI và cảnh báo giám sát</p>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('prompt')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-all relative ${
+              activeTab === 'prompt'
+                ? 'text-blue-600 bg-blue-50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <MessageSquare size={18} />
+            <span>System Prompt</span>
+            {activeTab === 'prompt' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('warning')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-all relative ${
+              activeTab === 'warning'
+                ? 'text-orange-600 bg-orange-50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <Bell size={18} />
+            <span>Cảnh báo giám sát</span>
+            {activeTab === 'warning' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600"></div>
+            )}
+          </button>
         </div>
       </div>
 
@@ -106,9 +167,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           </div>
         )}
 
-        {/* Settings Form */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">Chế độ Prompt</h2>
+        {/* Prompt Tab Content */}
+        {activeTab === 'prompt' && (
+          <>
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-lg">
+                  <MessageSquare className="text-blue-600" size={18} />
+                </div>
+                <h2 className="text-base font-semibold text-gray-900">Chế độ Prompt</h2>
+              </div>
           
           {/* Mode Selection */}
           <div className="space-y-3 mb-6">
@@ -232,37 +300,194 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Info Section */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="flex items-center justify-center w-7 h-7 bg-blue-600 rounded-lg">
-              <Info className="text-white" size={16} />
+            {/* Prompt Info Section */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center justify-center w-7 h-7 bg-blue-600 rounded-lg">
+                  <Info className="text-white" size={16} />
+                </div>
+                <h3 className="font-semibold text-blue-900 text-base">Hướng dẫn sử dụng Prompt</h3>
+              </div>
+              <ul className="text-sm text-blue-900 space-y-2">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Prompt mặc định đã được tối ưu cho tài liệu pháp luật tiếng Việt</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Nếu muốn tùy chỉnh, hãy chọn "Tùy chỉnh prompt" và nhập nội dung của bạn</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Bạn có thể bấm "Áp dụng prompt mặc định" để sử dụng nội dung mặc định làm base chỉnh sửa</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Sau khi lưu, cache sẽ tự động cập nhật và áp dụng ngay không cần restart server</span>
+                </li>
+              </ul>
             </div>
-            <h3 className="font-semibold text-blue-900 text-base">Hướng dẫn sử dụng</h3>
+          </>
+        )}
+
+        {/* Warning Tab Content */}
+        {activeTab === 'warning' && (
+          <>
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="flex items-center justify-center w-8 h-8 bg-orange-100 rounded-lg">
+                  <Bell className="text-orange-600" size={18} />
+                </div>
+                <h2 className="text-base font-semibold text-gray-900">Cấu hình cảnh báo giám sát</h2>
+              </div>
+          
+          {/* Thresholds */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ngưỡng cảnh báo quá hạn (ngày)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="30"
+                value={warningDaysThreshold}
+                onChange={(e) => setWarningDaysThreshold(parseInt(e.target.value) || 7)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Cảnh báo nếu tài liệu chưa hoàn thành sau X ngày</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ngưỡng cảnh báo tài liệu dở dang
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={warningIncompleteDocsThreshold}
+                onChange={(e) => setWarningIncompleteDocsThreshold(parseInt(e.target.value) || 5)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Cảnh báo nếu cán bộ có quá X tài liệu dở dang</p>
+            </div>
           </div>
-          <ul className="text-sm text-blue-900 space-y-2">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
-              <span>Prompt mặc định đã được tối ưu cho tài liệu pháp luật tiếng Việt</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
-              <span>Nếu muốn tùy chỉnh, hãy chọn "Tùy chỉnh prompt" và nhập nội dung của bạn</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
-              <span>Bạn có thể bấm "Áp dụng prompt mặc định" để sử dụng nội dung mặc định làm base chỉnh sửa</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
-              <span>Sau khi lưu, cache sẽ tự động cập nhật và áp dụng ngay không cần restart server</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
-              <span>Format JSON và validation rules sẽ được hệ thống tự động thêm vào</span>
-            </li>
-          </ul>
-        </div>
+
+          {/* Enable/Disable Warnings */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={enableOverdueWarning}
+                onChange={(e) => setEnableOverdueWarning(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-200"
+              />
+              <div className="flex-1">
+                <span className="text-sm font-medium text-gray-900">Cảnh báo tài liệu quá hạn</span>
+                <p className="text-xs text-gray-500">Hiển thị cảnh báo khi tài liệu chưa hoàn thành vượt quá ngưỡng ngày</p>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={enableZeroProgressWarning}
+                onChange={(e) => setEnableZeroProgressWarning(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-200"
+              />
+              <div className="flex-1">
+                <span className="text-sm font-medium text-gray-900">Cảnh báo chưa bắt đầu làm việc</span>
+                <p className="text-xs text-gray-500">Cảnh báo khi cán bộ có tài liệu nhưng chưa review Q&A nào (0% tiến độ)</p>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={enableTooManyIncompleteWarning}
+                onChange={(e) => setEnableTooManyIncompleteWarning(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-200"
+              />
+              <div className="flex-1">
+                <span className="text-sm font-medium text-gray-900">Cảnh báo quá nhiều tài liệu dở dang</span>
+                <p className="text-xs text-gray-500">Cảnh báo khi cán bộ có quá nhiều tài liệu chưa hoàn thành</p>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={enableNoDocumentWarning}
+                onChange={(e) => setEnableNoDocumentWarning(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-200"
+              />
+              <div className="flex-1">
+                <span className="text-sm font-medium text-gray-900">Cảnh báo chưa upload tài liệu nào</span>
+                <p className="text-xs text-gray-500">Cảnh báo khi cán bộ chưa upload tài liệu nào vào hệ thống</p>
+              </div>
+            </label>
+          </div>
+
+              {/* Save Button for Warning */}
+              <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    saving
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm'
+                  }`}
+                >
+                  {saving ? (
+                    <>
+                      <Settings className="animate-spin" size={16} />
+                      <span>Đang lưu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>Lưu cấu hình cảnh báo</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Warning Info Section */}
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center justify-center w-7 h-7 bg-orange-600 rounded-lg">
+                  <Info className="text-white" size={16} />
+                </div>
+                <h3 className="font-semibold text-orange-900 text-base">Hướng dẫn cảnh báo giám sát</h3>
+              </div>
+              <ul className="text-sm text-orange-900 space-y-2">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-orange-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Cấu hình này áp dụng cho tất cả cán bộ trong hệ thống giám sát</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-orange-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Ngưỡng ngày quá hạn: số ngày kể từ khi tài liệu được upload chưa hoàn thành</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-orange-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Ngưỡng dở dang: số lượng tài liệu chưa hoàn thành tối đa mà cán bộ có thể có</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-orange-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Bạn có thể bật/tắt từng loại cảnh báo tùy theo nhu cầu quản lý</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="text-orange-600 flex-shrink-0 mt-0.5" size={14} />
+                  <span>Cảnh báo sẽ hiển thị trên màn hình "Giám sát cán bộ"</span>
+                </li>
+              </ul>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

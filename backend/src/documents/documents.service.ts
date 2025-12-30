@@ -72,11 +72,15 @@ export class DocumentsService {
 
     // Admin xem tất cả, user thường chỉ xem của mình
     if (userRole === 'admin') {
-      docs = await this.documentRepo.find({ relations: ['user'] });
+      docs = await this.documentRepo.find({ 
+        relations: ['user'],
+        order: { id: 'DESC' }, // Sắp xếp mới nhất đầu (doc-timestamp)
+      });
     } else if (userId) {
       docs = await this.documentRepo.find({ 
         where: { userId },
         relations: ['user'],
+        order: { id: 'DESC' }, // Sắp xếp mới nhất đầu (doc-timestamp)
       });
     } else {
       // Fallback: không có auth info → trả về rỗng (hoặc tất cả nếu muốn backward compatible)

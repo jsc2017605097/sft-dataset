@@ -42,7 +42,33 @@ export interface AuthResponse {
   accessToken: string;
 }
 
-export type ViewState = 'login' | 'register' | 'dashboard' | 'upload' | 'review' | 'remote-files' | 'settings' | 'user-management';
+// Analytics types
+export interface StaffStats {
+  userId: string;
+  username: string;
+  totalDocs: number;
+  completedDocs: number;
+  incompleteDocs: number;
+  totalQAPairs: number;
+  reviewedQAPairs: number;
+  editedQAPairs: number;
+  avgCompletionRate: number;
+  oldestPendingDocDate: string | null;
+  daysSinceOldestPending: number | null;
+  isOverdue: boolean;
+}
+
+export interface StaffOverviewResponse {
+  stats: StaffStats[];
+  summary: {
+    totalUsers: number;
+    totalDocs: number;
+    avgCompletionRate: number;
+    overdueUsers: number;
+  };
+}
+
+export type ViewState = 'login' | 'register' | 'dashboard' | 'upload' | 'review' | 'remote-files' | 'settings' | 'user-management' | 'staff-monitoring';
 
 export interface AppState {
   view: ViewState;
